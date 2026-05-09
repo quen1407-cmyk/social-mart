@@ -1,0 +1,65 @@
+type UserPublic = 
+ record {
+   avatarUrl: text;
+   bio: text;
+   email: text;
+   followersCount: nat;
+   followingCount: nat;
+   uid: UserId;
+   username: text;
+ };
+type UserId = principal;
+type Timestamp = int;
+type PostPublic = 
+ record {
+   caption: text;
+   commentsCount: nat;
+   createdAt: Timestamp;
+   imageUrl: text;
+   likesCount: nat;
+   postId: PostId;
+   userId: UserId;
+ };
+type PostId = text;
+type Notification = 
+ record {
+   actorId: UserId;
+   createdAt: Timestamp;
+   notifId: NotifId;
+   notifType: text;
+   postId: opt PostId;
+   userId: UserId;
+ };
+type NotifId = text;
+type FeedPage = 
+ record {
+   nextOffset: opt nat;
+   posts: vec PostPublic;
+ };
+type CommentPublic = 
+ record {
+   commentId: CommentId;
+   createdAt: Timestamp;
+   postId: PostId;
+   "text": text;
+   userId: UserId;
+ };
+type CommentId = text;
+service : {
+  addComment: (postId: PostId, "text": text) -> (CommentId);
+  createPost: (imageUrl: text, caption: text) -> (PostId);
+  followUser: (followeeId: UserId) -> (bool);
+  getComments: (postId: PostId) -> (vec CommentPublic) query;
+  getFeed: (offset: nat, limit: nat) -> (FeedPage) query;
+  getMyProfile: () -> (opt UserPublic) query;
+  getNotifications: () -> (vec Notification) query;
+  getPost: (postId: PostId) -> (opt PostPublic) query;
+  getUser: (uid: UserId) -> (opt UserPublic) query;
+  likePost: (postId: PostId) -> (bool);
+  registerUser: (username: text, email: text) -> (bool);
+  savePost: (postId: PostId) -> (bool);
+  unfollowUser: (followeeId: UserId) -> (bool);
+  unlikePost: (postId: PostId) -> (bool);
+  unsavePost: (postId: PostId) -> (bool);
+  updateProfile: (username: text, bio: text, avatarUrl: text) -> (bool);
+}

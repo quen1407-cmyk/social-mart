@@ -1,0 +1,25 @@
+{
+  "overview": "Social Mart is a mobile-first social commerce app combining the best of Instagram and TikTok. Users can share posts, interact with a community, showcase products, and explore a marketplace — all in one sleek, minimalist app.",
+  "features": [
+    "User authentication with login and registration",
+    "Scrollable social feed with likes, comments, and saves",
+    "User profiles with followers, bio, and post grid",
+    "Image upload with caption for new posts",
+    "Post detail view with comments",
+    "Marketplace and product browsing",
+    "Bottom navigation bar for smooth mobile navigation",
+    "Dark and light mode support"
+  ],
+  "category": "social-commerce",
+  "tags": [
+    "social",
+    "commerce",
+    "marketplace",
+    "feed",
+    "mobile",
+    "instagram",
+    "tiktok",
+    "shopping"
+  ],
+  "last_updated": "2026-05-08T22:53:08.324Z"
+}
