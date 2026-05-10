@@ -19,130 +19,48 @@ const SearchPage = lazy(() => import("./pages/SearchPage"));
 const MarketplacePage = lazy(() => import("./pages/MarketplacePage"));
 const PostDetailPage = lazy(() => import("./pages/PostDetailPage"));
 const ReelsPage = lazy(() => import("./pages/ReelsPage"));
+const NotificationsPage = lazy(() => import("./pages/NotificationsPage"));
+const StoryPage = lazy(() => import("./pages/StoryPage"));
 
 const rootRoute = createRootRoute({
   component: () => (
     <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
       <Outlet />
-      <Toaster
-        position="top-center"
-        toastOptions={{
-          className:
-            "!bg-card !text-foreground !border-border !rounded-xl font-body text-sm",
-        }}
-      />
+      <Toaster position="top-center" toastOptions={{ className: "!bg-card !text-foreground !border-border !rounded-xl font-body text-sm" }} />
     </ThemeProvider>
   ),
 });
 
-const indexRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/",
-  component: () => (
+function wrap(Component: React.ComponentType) {
+  return () => (
     <Suspense fallback={<SpinnerOverlay fullScreen />}>
-      <HomePage />
+      <Component />
     </Suspense>
-  ),
-});
+  );
+}
 
-const loginRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/auth/login",
-  component: () => (
-    <Suspense fallback={<SpinnerOverlay fullScreen />}>
-      <LoginPage />
-    </Suspense>
-  ),
-});
-
-const registerRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/auth/register",
-  component: () => (
-    <Suspense fallback={<SpinnerOverlay fullScreen />}>
-      <RegisterPage />
-    </Suspense>
-  ),
-});
-
-const profileRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/profile/$uid",
-  component: () => (
-    <Suspense fallback={<SpinnerOverlay fullScreen />}>
-      <ProfilePage />
-    </Suspense>
-  ),
-});
-
-const uploadRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/upload",
-  component: () => (
-    <Suspense fallback={<SpinnerOverlay fullScreen />}>
-      <UploadPage />
-    </Suspense>
-  ),
-});
-
-const searchRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/search",
-  component: () => (
-    <Suspense fallback={<SpinnerOverlay fullScreen />}>
-      <SearchPage />
-    </Suspense>
-  ),
-});
-
-const marketplaceRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/marketplace",
-  component: () => (
-    <Suspense fallback={<SpinnerOverlay fullScreen />}>
-      <MarketplacePage />
-    </Suspense>
-  ),
-});
-
-const postRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/post/$postId",
-  component: () => (
-    <Suspense fallback={<SpinnerOverlay fullScreen />}>
-      <PostDetailPage />
-    </Suspense>
-  ),
-});
-
-const reelsRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/reels",
-  component: () => (
-    <Suspense fallback={<SpinnerOverlay fullScreen />}>
-      <ReelsPage />
-    </Suspense>
-  ),
-});
+const indexRoute = createRoute({ getParentRoute: () => rootRoute, path: "/", component: wrap(HomePage) });
+const loginRoute = createRoute({ getParentRoute: () => rootRoute, path: "/auth/login", component: wrap(LoginPage) });
+const registerRoute = createRoute({ getParentRoute: () => rootRoute, path: "/auth/register", component: wrap(RegisterPage) });
+const profileRoute = createRoute({ getParentRoute: () => rootRoute, path: "/profile/$uid", component: wrap(ProfilePage) });
+const uploadRoute = createRoute({ getParentRoute: () => rootRoute, path: "/upload", component: wrap(UploadPage) });
+const searchRoute = createRoute({ getParentRoute: () => rootRoute, path: "/search", component: wrap(SearchPage) });
+const marketplaceRoute = createRoute({ getParentRoute: () => rootRoute, path: "/marketplace", component: wrap(MarketplacePage) });
+const postRoute = createRoute({ getParentRoute: () => rootRoute, path: "/post/$postId", component: wrap(PostDetailPage) });
+const reelsRoute = createRoute({ getParentRoute: () => rootRoute, path: "/reels", component: wrap(ReelsPage) });
+const notificationsRoute = createRoute({ getParentRoute: () => rootRoute, path: "/notifications", component: wrap(NotificationsPage) });
+const storyRoute = createRoute({ getParentRoute: () => rootRoute, path: "/story", component: wrap(StoryPage) });
 
 const routeTree = rootRoute.addChildren([
-  indexRoute,
-  loginRoute,
-  registerRoute,
-  profileRoute,
-  uploadRoute,
-  searchRoute,
-  marketplaceRoute,
-  postRoute,
-  reelsRoute,
+  indexRoute, loginRoute, registerRoute, profileRoute,
+  uploadRoute, searchRoute, marketplaceRoute, postRoute,
+  reelsRoute, notificationsRoute, storyRoute,
 ]);
 
 const router = createRouter({ routeTree });
 
 declare module "@tanstack/react-router" {
-  interface Register {
-    router: typeof router;
-  }
+  interface Register { router: typeof router; }
 }
 
 export { profileRoute, postRoute };
