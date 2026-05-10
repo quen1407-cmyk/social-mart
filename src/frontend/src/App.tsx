@@ -1,5 +1,4 @@
 import {
-  Link,
   Outlet,
   RouterProvider,
   createRootRoute,
@@ -19,6 +18,7 @@ const UploadPage = lazy(() => import("./pages/UploadPage"));
 const SearchPage = lazy(() => import("./pages/SearchPage"));
 const MarketplacePage = lazy(() => import("./pages/MarketplacePage"));
 const PostDetailPage = lazy(() => import("./pages/PostDetailPage"));
+const ReelsPage = lazy(() => import("./pages/ReelsPage"));
 
 const rootRoute = createRootRoute({
   component: () => (
@@ -115,6 +115,16 @@ const postRoute = createRoute({
   ),
 });
 
+const reelsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/reels",
+  component: () => (
+    <Suspense fallback={<SpinnerOverlay fullScreen />}>
+      <ReelsPage />
+    </Suspense>
+  ),
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   loginRoute,
@@ -124,6 +134,7 @@ const routeTree = rootRoute.addChildren([
   searchRoute,
   marketplaceRoute,
   postRoute,
+  reelsRoute,
 ]);
 
 const router = createRouter({ routeTree });
