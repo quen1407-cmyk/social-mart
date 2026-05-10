@@ -1,9 +1,6 @@
 import {
-  Outlet,
-  RouterProvider,
-  createRootRoute,
-  createRoute,
-  createRouter,
+  Outlet, RouterProvider, createRootRoute,
+  createRoute, createRouter,
 } from "@tanstack/react-router";
 import { ThemeProvider } from "next-themes";
 import { Suspense, lazy } from "react";
@@ -21,6 +18,7 @@ const PostDetailPage = lazy(() => import("./pages/PostDetailPage"));
 const ReelsPage = lazy(() => import("./pages/ReelsPage"));
 const NotificationsPage = lazy(() => import("./pages/NotificationsPage"));
 const StoryPage = lazy(() => import("./pages/StoryPage"));
+const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 
 const rootRoute = createRootRoute({
   component: () => (
@@ -39,31 +37,27 @@ function wrap(Component: React.ComponentType) {
   );
 }
 
-const indexRoute = createRoute({ getParentRoute: () => rootRoute, path: "/", component: wrap(HomePage) });
-const loginRoute = createRoute({ getParentRoute: () => rootRoute, path: "/auth/login", component: wrap(LoginPage) });
-const registerRoute = createRoute({ getParentRoute: () => rootRoute, path: "/auth/register", component: wrap(RegisterPage) });
-const profileRoute = createRoute({ getParentRoute: () => rootRoute, path: "/profile/$uid", component: wrap(ProfilePage) });
-const uploadRoute = createRoute({ getParentRoute: () => rootRoute, path: "/upload", component: wrap(UploadPage) });
-const searchRoute = createRoute({ getParentRoute: () => rootRoute, path: "/search", component: wrap(SearchPage) });
-const marketplaceRoute = createRoute({ getParentRoute: () => rootRoute, path: "/marketplace", component: wrap(MarketplacePage) });
-const postRoute = createRoute({ getParentRoute: () => rootRoute, path: "/post/$postId", component: wrap(PostDetailPage) });
-const reelsRoute = createRoute({ getParentRoute: () => rootRoute, path: "/reels", component: wrap(ReelsPage) });
-const notificationsRoute = createRoute({ getParentRoute: () => rootRoute, path: "/notifications", component: wrap(NotificationsPage) });
-const storyRoute = createRoute({ getParentRoute: () => rootRoute, path: "/story", component: wrap(StoryPage) });
+const routes = [
+  createRoute({ getParentRoute: () => rootRoute, path: "/", component: wrap(HomePage) }),
+  createRoute({ getParentRoute: () => rootRoute, path: "/auth/login", component: wrap(LoginPage) }),
+  createRoute({ getParentRoute: () => rootRoute, path: "/auth/register", component: wrap(RegisterPage) }),
+  createRoute({ getParentRoute: () => rootRoute, path: "/profile/$uid", component: wrap(ProfilePage) }),
+  createRoute({ getParentRoute: () => rootRoute, path: "/upload", component: wrap(UploadPage) }),
+  createRoute({ getParentRoute: () => rootRoute, path: "/search", component: wrap(SearchPage) }),
+  createRoute({ getParentRoute: () => rootRoute, path: "/marketplace", component: wrap(MarketplacePage) }),
+  createRoute({ getParentRoute: () => rootRoute, path: "/post/$postId", component: wrap(PostDetailPage) }),
+  createRoute({ getParentRoute: () => rootRoute, path: "/reels", component: wrap(ReelsPage) }),
+  createRoute({ getParentRoute: () => rootRoute, path: "/notifications", component: wrap(NotificationsPage) }),
+  createRoute({ getParentRoute: () => rootRoute, path: "/story", component: wrap(StoryPage) }),
+  createRoute({ getParentRoute: () => rootRoute, path: "/settings", component: wrap(SettingsPage) }),
+];
 
-const routeTree = rootRoute.addChildren([
-  indexRoute, loginRoute, registerRoute, profileRoute,
-  uploadRoute, searchRoute, marketplaceRoute, postRoute,
-  reelsRoute, notificationsRoute, storyRoute,
-]);
-
+const routeTree = rootRoute.addChildren(routes);
 const router = createRouter({ routeTree });
 
 declare module "@tanstack/react-router" {
   interface Register { router: typeof router; }
 }
-
-export { profileRoute, postRoute };
 
 export default function App() {
   return <RouterProvider router={router} />;
