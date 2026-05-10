@@ -1,609 +1,351 @@
 import { Layout } from "@/components/layout/Layout";
 import { Avatar } from "@/components/shared/Avatar";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useAuth } from "@/hooks/use-auth";
-import {
-  useFollowUser,
-  useGetMyProfile,
-  useGetUser,
-  useUnfollowUser,
-  useUpdateProfile,
-} from "@/hooks/useQueries";
+import { cn } from "@/lib/utils";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import {
+  AtSign,
   Camera,
   Grid3x3,
+  Heart,
+  MessageCircle,
   Settings,
+  Share2,
   ShoppingBag,
   UserCheck,
-  UserMinus,
   UserPlus,
 } from "lucide-react";
-import { motion } from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import { motion, AnimatePresence } from "motion/react";
+import { useState } from "react";
 import { toast } from "sonner";
 
-const SAMPLE_POSTS = [
-  { postId: "p1", image: "/assets/generated/profile-grid-1.dim_600x600.jpg" },
-  { postId: "p2", image: "/assets/generated/profile-grid-2.dim_600x600.jpg" },
-  { postId: "p3", image: "/assets/generated/hero-feed-1.dim_800x800.jpg" },
-  { postId: "p4", image: "/assets/generated/hero-feed-2.dim_800x800.jpg" },
-  { postId: "p5", image: "/assets/generated/hero-feed-3.dim_800x800.jpg" },
-  { postId: "p6", image: "/assets/generated/profile-grid-1.dim_600x600.jpg" },
+const SAMPLE_USERS = [
+  { username: "aurora_styles", seed: "aurora" },
+  { username: "tech_by_kai", seed: "kai" },
+  { username: "mia.creates", seed: "mia" },
+  { username: "glowlab.id", seed: "glow" },
+  { username: "zenbrews", seed: "zen" },
 ];
 
-function ProfileSkeleton() {
-  return (
-    <div>
-      <div className="px-5 pt-5 pb-4 bg-card border-b border-border">
-        <div className="flex items-start gap-5">
-          <Skeleton className="h-20 w-20 rounded-full shrink-0" />
-          <div className="flex-1 min-w-0 space-y-2">
-            <Skeleton className="h-5 w-36 rounded-lg" />
-            <Skeleton className="h-3.5 w-52 rounded-md" />
-            <Skeleton className="h-3 w-44 rounded-md" />
-            <div className="flex gap-5 mt-3">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="space-y-1">
-                  <Skeleton className="h-4 w-8 rounded-md" />
-                  <Skeleton className="h-3 w-12 rounded-md" />
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-        <Skeleton className="h-10 w-full rounded-xl mt-4" />
-      </div>
-      <div className="flex bg-card border-b border-border">
-        <Skeleton className="h-10 flex-1 m-2 rounded-lg" />
-        <Skeleton className="h-10 flex-1 m-2 rounded-lg" />
-      </div>
-      <div className="grid grid-cols-3 gap-0.5 bg-border">
-        {[1, 2, 3, 4, 5, 6].map((i) => (
-          <Skeleton key={i} className="aspect-square rounded-none" />
-        ))}
-      </div>
-    </div>
+const SAMPLE_POSTS = [
+  { id: "p1", image: "https://api.dicebear.com/9.x/shapes/svg?seed=post1&backgroundColor=b6e3f4", likes: 234, comments: 12 },
+  { id: "p2", image: "https://api.dicebear.com/9.x/shapes/svg?seed=post2&backgroundColor=ffd5dc", likes: 891, comments: 45 },
+  { id: "p3", image: "https://api.dicebear.com/9.x/shapes/svg?seed=post3&backgroundColor=c0aede", likes: 156, comments: 8 },
+  { id: "p4", image: "https://api.dicebear.com/9.x/shapes/svg?seed=post4&backgroundColor=d1f4cc", likes: 432, comments: 23 },
+  { id: "p5", image: "https://api.dicebear.com/9.x/shapes/svg?seed=post5&backgroundColor=ffecc8", likes: 678, comments: 31 },
+  { id: "p6", image: "https://api.dicebear.com/9.x/shapes/svg?seed=post6&backgroundColor=b6e3b6", likes: 321, comments: 17 },
+];
+
+function TagInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [input, setInput] = useState("");
+  const [showDropdown, setShowDropdown] = useState(false);
+  const tagged = value ? value.match(/@[\w.]+/g) ?? [] : [];
+  const filtered = SAMPLE_USERS.filter(u =>
+    u.username.includes(input.replace("@", "")) && !tagged.includes(`@${u.username}`)
   );
-}
 
-function EditProfileSheet({
-  open,
-  onClose,
-  initialUsername,
-  initialBio,
-  initialAvatarUrl,
-}: {
-  open: boolean;
-  onClose: () => void;
-  initialUsername: string;
-  initialBio: string;
-  initialAvatarUrl: string;
-}) {
-  const [username, setUsername] = useState(initialUsername);
-  const [bio, setBio] = useState(initialBio);
-  const [avatarUrl, setAvatarUrl] = useState(initialAvatarUrl);
-  const updateProfile = useUpdateProfile();
-
-  useEffect(() => {
-    if (open) {
-      setUsername(initialUsername);
-      setBio(initialBio);
-      setAvatarUrl(initialAvatarUrl);
+  function handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
+    const v = e.target.value;
+    onChange(v);
+    const lastWord = v.split(" ").pop() ?? "";
+    if (lastWord.startsWith("@") && lastWord.length > 1) {
+      setInput(lastWord);
+      setShowDropdown(true);
+    } else {
+      setShowDropdown(false);
+      setInput("");
     }
-  }, [open, initialUsername, initialBio, initialAvatarUrl]);
+  }
 
-  const handleSave = async () => {
-    try {
-      await updateProfile.mutateAsync({ username, bio, avatarUrl });
-      toast.success("Profile updated!");
-      onClose();
-    } catch {
-      toast.error("Failed to update profile. Please try again.");
-    }
-  };
+  function pickUser(username: string) {
+    const words = value.split(" ");
+    words[words.length - 1] = `@${username}`;
+    onChange(words.join(" ") + " ");
+    setShowDropdown(false);
+    setInput("");
+  }
 
   return (
-    <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
-      <SheetContent
-        side="bottom"
-        data-ocid="profile.edit_sheet"
-        className="bg-card border-border rounded-t-3xl max-h-[90svh] overflow-y-auto px-0"
-      >
-        <SheetHeader className="px-5 pb-0">
-          <SheetTitle className="font-display text-lg">Edit Profile</SheetTitle>
-        </SheetHeader>
-
-        {/* Avatar preview + URL */}
-        <div className="flex flex-col items-center gap-3 py-5 px-5 border-b border-border">
-          <div className="relative">
-            <Avatar
-              src={
-                avatarUrl ||
-                `https://api.dicebear.com/9.x/notionists/svg?seed=${username}`
-              }
-              alt={username || "User"}
-              size="xl"
-              withRing
-            />
-            <div className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-primary flex items-center justify-center">
-              <Camera size={13} className="text-primary-foreground" />
-            </div>
-          </div>
-          <div className="w-full">
-            <label
-              htmlFor="edit-avatar-url"
-              className="text-xs text-muted-foreground font-medium"
-            >
-              Avatar URL
-            </label>
-            <input
-              id="edit-avatar-url"
-              data-ocid="profile.edit_avatar_input"
-              type="url"
-              value={avatarUrl}
-              onChange={(e) => setAvatarUrl(e.target.value)}
-              placeholder="https://example.com/photo.jpg"
-              className="mt-1 w-full h-10 rounded-xl bg-muted border border-input px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-smooth"
-            />
-          </div>
-        </div>
-
-        {/* Fields */}
-        <div className="px-5 py-4 space-y-4">
-          <div>
-            <label
-              htmlFor="edit-username"
-              className="text-xs text-muted-foreground font-medium"
-            >
-              Username
-            </label>
-            <input
-              id="edit-username"
-              data-ocid="profile.edit_username_input"
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="Your username"
-              maxLength={32}
-              className="mt-1 w-full h-10 rounded-xl bg-muted border border-input px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-smooth"
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="edit-bio"
-              className="text-xs text-muted-foreground font-medium"
-            >
-              Bio
-            </label>
-            <textarea
-              id="edit-bio"
-              data-ocid="profile.edit_bio_textarea"
-              value={bio}
-              onChange={(e) => setBio(e.target.value)}
-              placeholder="Tell your story..."
-              maxLength={160}
-              rows={3}
-              className="mt-1 w-full rounded-xl bg-muted border border-input px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-smooth resize-none"
-            />
-            <p className="text-right text-[10px] text-muted-foreground mt-1">
-              {bio.length}/160
-            </p>
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="px-5 pb-8 flex gap-3">
-          <button
-            type="button"
-            data-ocid="profile.edit_cancel_button"
-            onClick={onClose}
-            className="flex-1 h-11 rounded-xl border border-border text-sm font-semibold text-foreground hover:bg-muted transition-smooth"
+    <div className="relative">
+      <textarea
+        value={value}
+        onChange={handleChange}
+        placeholder="Tulis bio kamu... ketik @ untuk tag orang"
+        rows={3}
+        maxLength={160}
+        className="w-full bg-muted border border-border rounded-xl px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
+      />
+      <AnimatePresence>
+        {showDropdown && filtered.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            className="absolute z-10 bottom-full mb-1 left-0 right-0 bg-card border border-border rounded-xl overflow-hidden shadow-lg"
           >
-            Cancel
-          </button>
-          <button
-            type="button"
-            data-ocid="profile.edit_save_button"
-            onClick={handleSave}
-            disabled={updateProfile.isPending}
-            className="flex-1 h-11 rounded-xl bg-primary text-primary-foreground text-sm font-semibold transition-smooth hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center"
-          >
-            {updateProfile.isPending ? (
-              <svg
-                className="animate-spin h-4 w-4"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                aria-label="Saving"
-                role="img"
+            {filtered.slice(0, 4).map((u) => (
+              <button
+                key={u.username}
+                type="button"
+                onClick={() => pickUser(u.username)}
+                className="flex items-center gap-2 w-full px-3 py-2.5 hover:bg-muted transition-smooth"
               >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                />
-              </svg>
-            ) : (
-              "Save Changes"
-            )}
-          </button>
-        </div>
-      </SheetContent>
-    </Sheet>
+                <Avatar src={`https://api.dicebear.com/9.x/notionists/svg?seed=${u.seed}`} alt={u.username} size="sm" />
+                <span className="text-sm font-medium text-foreground">{u.username}</span>
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <p className="text-right text-[10px] text-muted-foreground mt-1">{value.length}/160</p>
+    </div>
   );
 }
 
 export default function ProfilePage() {
   const { uid } = useParams({ strict: false }) as { uid: string };
-  const { isAuthenticated, principal } = useAuth();
   const navigate = useNavigate();
-
-  const isSelf =
-    uid === "me" || (principal != null && uid === principal.toText());
-
-  const {
-    data: myProfile,
-    isLoading: myLoading,
-    isError: myError,
-  } = useGetMyProfile();
-
-  const {
-    data: otherProfile,
-    isLoading: otherLoading,
-    isError: otherError,
-  } = useGetUser(isSelf ? undefined : uid);
-
-  const profile = isSelf ? myProfile : otherProfile;
-  const isLoading = isSelf ? myLoading : otherLoading;
-  const isError = isSelf ? myError : otherError;
-
-  const followUser = useFollowUser();
-  const unfollowUser = useUnfollowUser();
+  const isSelf = uid === "me";
 
   const [tab, setTab] = useState<"posts" | "products">("posts");
   const [editOpen, setEditOpen] = useState(false);
   const [following, setFollowing] = useState(false);
-  const followPending = followUser.isPending || unfollowUser.isPending;
-  const prevUid = useRef(uid);
+  const [username, setUsername] = useState("Joy");
+  const [bio, setBio] = useState("✨ Halo! Saya suka fashion & teknologi");
+  const [editUsername, setEditUsername] = useState(username);
+  const [editBio, setEditBio] = useState(bio);
 
-  useEffect(() => {
-    if (prevUid.current !== uid) {
-      setFollowing(false);
-      prevUid.current = uid;
-    }
-  }, [uid]);
+  function saveProfile() {
+    setUsername(editUsername);
+    setBio(editBio);
+    setEditOpen(false);
+    toast.success("Profil berhasil diperbarui!");
+  }
 
-  const handleFollowToggle = async () => {
-    if (!uid) return;
-    try {
-      if (following) {
-        await unfollowUser.mutateAsync(uid);
-        setFollowing(false);
-        toast("Unfollowed");
-      } else {
-        await followUser.mutateAsync(uid);
-        setFollowing(true);
-        toast("Now following!");
-      }
-    } catch {
-      toast.error("Action failed. Please try again.");
-    }
-  };
-
-  // Unauthenticated own-profile guard
-  if (!isAuthenticated && isSelf) {
-    return (
-      <Layout>
-        <div
-          data-ocid="profile.auth_required"
-          className="flex flex-col items-center justify-center min-h-[60vh] gap-5 px-6"
-        >
-          <div className="h-16 w-16 rounded-2xl bg-muted flex items-center justify-center">
-            <UserPlus size={28} className="text-muted-foreground" />
-          </div>
-          <div className="text-center">
-            <p className="font-display font-bold text-lg text-foreground">
-              Sign in to view your profile
-            </p>
-            <p className="text-sm text-muted-foreground mt-1">
-              Create an account or sign in to get started
-            </p>
-          </div>
-          <button
-            type="button"
-            data-ocid="profile.login_button"
-            onClick={() => navigate({ to: "/auth/login" })}
-            className="px-8 py-3 rounded-xl bg-primary text-primary-foreground font-semibold text-sm transition-smooth hover:opacity-90 active:scale-95"
-          >
-            Sign In
-          </button>
-        </div>
-      </Layout>
+  function renderBioWithTags(text: string) {
+    const parts = text.split(/(@[\w.]+)/g);
+    return parts.map((part, i) =>
+      part.startsWith("@") ? (
+        <span key={i} className="text-primary font-semibold">{part}</span>
+      ) : (
+        <span key={i}>{part}</span>
+      )
     );
   }
 
-  const displayName = profile?.username ?? (isSelf ? "New User" : "User");
-  const avatarSrc =
-    profile?.avatarUrl ??
-    `https://api.dicebear.com/9.x/notionists/svg?seed=${uid}`;
-
   return (
     <Layout>
-      {/* Sticky header */}
       <header className="sticky top-0 z-40 bg-card/95 backdrop-blur-md border-b border-border px-4 py-3 flex items-center justify-between">
-        <span className="text-base font-display font-bold text-foreground truncate">
-          {displayName}
-        </span>
-        {isSelf && (
-          <button
-            type="button"
-            data-ocid="profile.settings_button"
-            onClick={() => toast("Settings coming soon")}
-            className="p-2 rounded-full hover:bg-muted transition-smooth"
-            aria-label="Settings"
-          >
-            <Settings
-              size={20}
-              strokeWidth={1.75}
-              className="text-foreground"
-            />
+        <span className="text-base font-display font-bold text-foreground">{username}</span>
+        <div className="flex items-center gap-1">
+          <button type="button" onClick={() => toast("Link profil disalin!")} className="p-2 rounded-full hover:bg-muted transition-smooth">
+            <Share2 size={18} className="text-foreground" />
           </button>
-        )}
+          {isSelf && (
+            <button type="button" onClick={() => toast("Pengaturan segera hadir!")} className="p-2 rounded-full hover:bg-muted transition-smooth">
+              <Settings size={18} className="text-foreground" />
+            </button>
+          )}
+        </div>
       </header>
 
-      {/* Loading skeleton */}
-      {isLoading && <ProfileSkeleton />}
-
-      {/* Error state */}
-      {!isLoading && (isError || (!profile && !isLoading)) && (
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35 }}
-          data-ocid="profile.error_state"
-          className="flex flex-col items-center justify-center min-h-[50vh] gap-5 px-6"
-        >
-          <div className="h-20 w-20 rounded-full bg-muted flex items-center justify-center">
-            <UserMinus size={32} className="text-muted-foreground/50" />
-          </div>
-          <div className="text-center">
-            <p className="font-display font-bold text-lg text-foreground">
-              User not found
-            </p>
-            <p className="text-sm text-muted-foreground mt-1">
-              This account may not exist or was removed
-            </p>
-          </div>
-          <button
-            type="button"
-            data-ocid="profile.back_button"
-            onClick={() => navigate({ to: "/" })}
-            className="px-6 py-3 rounded-xl border border-border text-sm font-semibold text-foreground hover:bg-muted transition-smooth"
-          >
-            Go Home
-          </button>
-        </motion.div>
-      )}
-
-      {/* Profile content */}
-      {!isLoading && profile && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.4 }}
-        >
-          {/* Profile header card */}
-          <div className="px-5 pt-5 pb-4 bg-card border-b border-border">
-            <div className="flex items-start gap-5">
-              <Avatar src={avatarSrc} alt={displayName} size="xl" withRing />
-              <div className="flex-1 min-w-0">
-                <h2 className="text-lg font-display font-bold text-foreground truncate">
-                  {displayName}
-                </h2>
-                {profile.bio ? (
-                  <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2">
-                    {profile.bio}
-                  </p>
-                ) : (
-                  <p className="text-sm text-muted-foreground/50 mt-0.5 italic">
-                    {isSelf ? "Add a bio to tell your story" : "No bio yet"}
-                  </p>
-                )}
-
-                {/* Stats row */}
-                <div className="flex gap-5 mt-3">
-                  {[
-                    {
-                      label: "Posts",
-                      value: 0,
-                      ocid: "profile.posts_count",
-                    },
-                    {
-                      label: "Followers",
-                      value: Number(profile.followersCount),
-                      ocid: "profile.followers_count",
-                    },
-                    {
-                      label: "Following",
-                      value: Number(profile.followingCount),
-                      ocid: "profile.following_count",
-                    },
-                  ].map(({ label, value, ocid }) => (
-                    <div key={label} className="text-center" data-ocid={ocid}>
-                      <p className="font-display font-bold text-sm text-foreground">
-                        {value >= 1000
-                          ? `${(value / 1000).toFixed(1)}k`
-                          : value}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
-                        {label}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Action button */}
-            <div className="mt-4">
-              {isSelf ? (
-                <button
-                  type="button"
-                  data-ocid="profile.edit_button"
-                  onClick={() => setEditOpen(true)}
-                  className="w-full h-10 rounded-xl border border-border text-sm font-semibold text-foreground hover:bg-muted transition-smooth active:scale-[0.98]"
-                >
-                  Edit Profile
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  data-ocid="profile.follow_button"
-                  onClick={handleFollowToggle}
-                  disabled={followPending}
-                  className={`w-full h-10 rounded-xl text-sm font-semibold transition-smooth flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-60 ${
-                    following
-                      ? "border border-border text-foreground hover:bg-muted"
-                      : "bg-primary text-primary-foreground hover:opacity-90"
-                  }`}
-                >
-                  {following ? (
-                    <>
-                      <UserCheck size={15} />
-                      Following
-                    </>
-                  ) : (
-                    <>
-                      <UserPlus size={15} />
-                      Follow
-                    </>
-                  )}
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+        {/* Profile header */}
+        <div className="px-5 pt-5 pb-4 bg-card border-b border-border">
+          <div className="flex items-start gap-4">
+            <div className="relative shrink-0">
+              <Avatar
+                src={`https://api.dicebear.com/9.x/notionists/svg?seed=${uid}`}
+                alt={username}
+                size="xl"
+                withRing
+              />
+              {isSelf && (
+                <button type="button" onClick={() => setEditOpen(true)} className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-primary flex items-center justify-center border-2 border-card">
+                  <Camera size={12} className="text-primary-foreground" />
                 </button>
               )}
             </div>
+            <div className="flex-1 min-w-0">
+              <h2 className="text-lg font-display font-bold text-foreground">{username}</h2>
+              <p className="text-sm text-muted-foreground mt-0.5 leading-snug">
+                {renderBioWithTags(bio)}
+              </p>
+              <div className="flex gap-5 mt-3">
+                {[
+                  { label: "Postingan", value: 12 },
+                  { label: "Pengikut", value: "1.2K" },
+                  { label: "Mengikuti", value: 248 },
+                ].map(({ label, value }) => (
+                  <div key={label} className="text-center">
+                    <p className="font-display font-bold text-sm text-foreground">{value}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{label}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
 
-          {/* Tab selector */}
-          <div
-            className="flex bg-card border-b border-border"
-            data-ocid="profile.tabs"
-          >
-            {(["posts", "products"] as const).map((t) => (
+          <div className="mt-4 flex gap-2">
+            {isSelf ? (
               <button
                 type="button"
-                key={t}
-                data-ocid={`profile.${t}_tab`}
-                onClick={() => setTab(t)}
-                className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-smooth border-b-2 ${
-                  tab === t
-                    ? "border-primary text-primary"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
-                }`}
+                onClick={() => { setEditUsername(username); setEditBio(bio); setEditOpen(true); }}
+                className="flex-1 h-10 rounded-xl border border-border text-sm font-semibold text-foreground hover:bg-muted transition-smooth"
               >
-                {t === "posts" ? (
-                  <Grid3x3 size={16} />
-                ) : (
-                  <ShoppingBag size={16} />
-                )}
-                {t.charAt(0).toUpperCase() + t.slice(1)}
+                Edit Profil
               </button>
-            ))}
-          </div>
-
-          {/* Posts grid */}
-          {tab === "posts" && (
-            <div className="grid grid-cols-3 gap-0.5 bg-border">
-              {SAMPLE_POSTS.map(({ postId, image }, idx) => (
-                <motion.button
-                  type="button"
-                  key={postId}
-                  data-ocid={`profile.post.${idx + 1}`}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: idx * 0.04, duration: 0.3 }}
-                  onClick={() =>
-                    navigate({ to: "/post/$postId", params: { postId } })
-                  }
-                  className="aspect-square bg-muted overflow-hidden block"
-                  aria-label={`View post ${idx + 1}`}
-                >
-                  <img
-                    src={image}
-                    alt={`Post ${idx + 1}`}
-                    className="h-full w-full object-cover transition-smooth hover:scale-105"
-                    loading="lazy"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src =
-                        "/assets/images/placeholder.svg";
-                    }}
-                  />
-                </motion.button>
-              ))}
-            </div>
-          )}
-
-          {/* Products empty state */}
-          {tab === "products" && (
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-              data-ocid="profile.products.empty_state"
-              className="flex flex-col items-center justify-center py-16 gap-4 px-6"
-            >
-              <div className="h-16 w-16 rounded-2xl bg-muted flex items-center justify-center">
-                <ShoppingBag size={28} className="text-muted-foreground/50" />
-              </div>
-              <div className="text-center">
-                <p className="font-display font-semibold text-foreground">
-                  No products listed yet
-                </p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {isSelf
-                    ? "Start selling by uploading your first product"
-                    : "This user has no products for sale"}
-                </p>
-              </div>
-              {isSelf && (
+            ) : (
+              <>
                 <button
                   type="button"
-                  data-ocid="profile.add_product_button"
-                  onClick={() => navigate({ to: "/upload" })}
-                  className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold transition-smooth hover:opacity-90 active:scale-95"
+                  onClick={() => { setFollowing(!following); toast(following ? "Berhenti mengikuti" : "Mengikuti!"); }}
+                  className={cn(
+                    "flex-1 h-10 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-smooth",
+                    following ? "border border-border text-foreground hover:bg-muted" : "bg-primary text-primary-foreground hover:opacity-90"
+                  )}
                 >
-                  List a Product
+                  {following ? <><UserCheck size={15} /> Mengikuti</> : <><UserPlus size={15} /> Ikuti</>}
                 </button>
+                <button type="button" className="flex-1 h-10 rounded-xl border border-border text-sm font-semibold text-foreground hover:bg-muted transition-smooth">
+                  Pesan
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex bg-card border-b border-border">
+          {([["posts", Grid3x3, "Postingan"], ["products", ShoppingBag, "Produk"]] as const).map(([t, Icon, label]) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setTab(t)}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-smooth border-b-2",
+                tab === t ? "border-primary text-primary" : "border-transparent text-muted-foreground"
               )}
-            </motion.div>
-          )}
-        </motion.div>
-      )}
+            >
+              <Icon size={16} /> {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Posts grid */}
+        {tab === "posts" && (
+          <div className="grid grid-cols-3 gap-0.5 bg-border">
+            {SAMPLE_POSTS.map((post, idx) => (
+              <motion.div
+                key={post.id}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: idx * 0.04 }}
+                className="relative aspect-square bg-muted overflow-hidden group cursor-pointer"
+              >
+                <img src={post.image} alt={`Post ${idx + 1}`} className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-smooth flex items-center justify-center gap-4">
+                  <span className="flex items-center gap-1 text-white text-xs font-bold">
+                    <Heart size={14} className="fill-white" /> {post.likes}
+                  </span>
+                  <span className="flex items-center gap-1 text-white text-xs font-bold">
+                    <MessageCircle size={14} className="fill-white" /> {post.comments}
+                  </span>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
+
+        {tab === "products" && (
+          <div className="flex flex-col items-center justify-center py-16 gap-4 px-6">
+            <div className="h-16 w-16 rounded-2xl bg-muted flex items-center justify-center">
+              <ShoppingBag size={28} className="text-muted-foreground/50" />
+            </div>
+            <div className="text-center">
+              <p className="font-display font-semibold text-foreground">Belum ada produk</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {isSelf ? "Mulai jual produkmu!" : "Pengguna ini belum punya produk"}
+              </p>
+            </div>
+            {isSelf && (
+              <button
+                type="button"
+                onClick={() => navigate({ to: "/marketplace" })}
+                className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold"
+              >
+                Jual Produk
+              </button>
+            )}
+          </div>
+        )}
+      </motion.div>
 
       {/* Edit Profile Sheet */}
-      {isSelf && (
-        <EditProfileSheet
-          open={editOpen}
-          onClose={() => setEditOpen(false)}
-          initialUsername={profile?.username ?? ""}
-          initialBio={profile?.bio ?? ""}
-          initialAvatarUrl={profile?.avatarUrl ?? ""}
-        />
-      )}
+      <AnimatePresence>
+        {editOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+            onClick={() => setEditOpen(false)}
+          >
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", bounce: 0.1 }}
+              className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-card rounded-t-3xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex justify-center pt-3 pb-1">
+                <div className="w-10 h-1 rounded-full bg-border" />
+              </div>
+              <div className="px-5 py-3 border-b border-border">
+                <h2 className="text-base font-display font-bold text-foreground">Edit Profil</h2>
+              </div>
+              <div className="px-5 py-4 space-y-4 max-h-[70vh] overflow-y-auto pb-8">
+                <div className="flex justify-center">
+                  <div className="relative">
+                    <Avatar src={`https://api.dicebear.com/9.x/notionists/svg?seed=${uid}`} alt={username} size="xl" withRing />
+                    <button type="button" className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-primary flex items-center justify-center border-2 border-card">
+                      <Camera size={12} className="text-primary-foreground" />
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground font-medium">Username</label>
+                  <div className="relative mt-1">
+                    <AtSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                      value={editUsername}
+                      onChange={(e) => setEditUsername(e.target.value)}
+                      placeholder="Username"
+                      className="w-full bg-muted border border-border rounded-xl pl-8 pr-4 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+                    Bio <span className="text-primary text-[10px]">(ketik @ untuk tag orang)</span>
+                  </label>
+                  <div className="mt-1">
+                    <TagInput value={editBio} onChange={setEditBio} />
+                  </div>
+                </div>
+                <div className="flex gap-3 pt-2">
+                  <button type="button" onClick={() => setEditOpen(false)} className="flex-1 h-11 rounded-xl border border-border text-sm font-semibold text-foreground">
+                    Batal
+                  </button>
+                  <button type="button" onClick={saveProfile} className="flex-1 h-11 rounded-xl bg-primary text-primary-foreground text-sm font-semibold">
+                    Simpan
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </Layout>
   );
 }
