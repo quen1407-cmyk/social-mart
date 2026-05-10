@@ -6,13 +6,12 @@ import { PostCardSkeleton } from "@/components/shared/SpinnerOverlay";
 import { useAuth } from "@/hooks/use-auth";
 import { useGetFeed } from "@/hooks/useQueries";
 import { useNavigate } from "@tanstack/react-router";
-import { Bell, ChevronDown, Moon, Package, Sun, Zap } from "lucide-react";
+import { Bell, Moon, Package, Plus, Sun, Zap } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
+import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
-import { useEffect } from "react";
 import { toast } from "sonner";
 
-// ─── Static sample posts shown when backend feed is empty ───────────────────
 type SamplePost = {
   id: string;
   username: string;
@@ -21,53 +20,117 @@ type SamplePost = {
   caption: string;
   likes: number;
   comments: number;
-  createdAt: bigint;
+  time: string;
 };
+
+const SAMPLE_STORIES = [
+  { username: "aurora_styles", seed: "aurora", viewed: false },
+  { username: "tech_by_kai", seed: "kai", viewed: false },
+  { username: "mia.creates", seed: "mia", viewed: true },
+  { username: "glowlab.id", seed: "glow", viewed: false },
+  { username: "zenbrews", seed: "zen", viewed: true },
+];
 
 const SAMPLE_POSTS: SamplePost[] = [
   {
-    id: "s1",
+    id: "sp1",
     username: "aurora_styles",
     seed: "aurora",
-    image: "/assets/generated/hero-feed-1.dim_800x800.jpg",
-    caption:
-      "New collection just dropped ✨ Minimal premium fashion for everyday moments.",
+    image: "https://api.dicebear.com/9.x/shapes/svg?seed=post1&backgroundColor=b6e3f4",
+    caption: "New collection just dropped! ✨ Minimal premium fashion for everyday moments #OOTD #fashion",
     likes: 2847,
     comments: 134,
-    createdAt: BigInt(Date.now() - 2 * 3_600_000) * 1_000_000n,
+    time: "2j",
   },
   {
-    id: "s2",
+    id: "sp2",
     username: "tech_by_kai",
     seed: "kai",
-    image: "/assets/generated/hero-feed-2.dim_800x800.jpg",
-    caption:
-      "Unboxed the most satisfying workspace setup 🖥️ Everything linked in marketplace.",
+    image: "https://api.dicebear.com/9.x/shapes/svg?seed=post2&backgroundColor=c0aede",
+    caption: "Setup tour 🖥️ Everything linked in marketplace! #techsetup #productivity",
     likes: 5102,
     comments: 287,
-    createdAt: BigInt(Date.now() - 4 * 3_600_000) * 1_000_000n,
+    time: "4j",
   },
   {
-    id: "s3",
-    username: "mia.creates",
-    seed: "mia",
-    image: "/assets/generated/hero-feed-3.dim_800x800.jpg",
-    caption:
-      "Handmade ceramic mugs 🍵 Each one unique, made with love. Shop now!",
-    likes: 1920,
-    comments: 98,
-    createdAt: BigInt(Date.now() - 6 * 3_600_000) * 1_000_000n,
+    id: "sp3",
+    username: "glowlab.id",
+    seed: "glow",
+    image: "https://api.dicebear.com/9.x/shapes/svg?seed=post3&backgroundColor=d1f4cc",
+    caption: "Glass skin routine 🧴 30 days challenge results! #skincare #glowup",
+    likes: 4410,
+    comments: 320,
+    time: "6j",
   },
 ];
 
-const STORY_USERS = ["Aurora", "Kai", "Mia", "Dev", "Zoe", "Leo", "Sam", "Ana"];
+function SamplePostCard({ post }: { post: SamplePost }) {
+  const [liked, setLiked] = useState(false);
+  const [localLikes, setLocalLikes] = useState(post.likes);
+  const navigate = useNavigate();
+
+  function handleLike() {
+    if (liked) {
+      setLiked(false);
+      setLocalLikes((n) => n - 1);
+    } else {
+      setLiked(true);
+      setLocalLikes((n) => n + 1);
+    }
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-card border border-border rounded-2xl overflow-hidden"
+    >
+      <div className="flex items-center gap-3 px-4 py-3">
+        <button type="button" onClick={() => navigate({ to: "/profile/$uid", params: { uid: post.seed } })}>
+          <Avatar src={`https://api.dicebear.com/9.x/notionists/svg?seed=${post.seed}`} alt={post.username} size="sm" withRing />
+        </button>
+        <div className="flex-1">
+          <p className="text-sm font-semibold text-foreground">{post.username}</p>
+          <p className="text-[11px] text-muted-foreground">{post.time} yang lalu</p>
+        </div>
+        <button type="button" className="text-xs text-primary font-semibold border border-primary/30 px-3 py-1 rounded-full">
+          Ikuti
+        </button>
+      </div>
+      <div className="aspect-square bg-muted">
+        <img src={post.image} alt={post.caption} className="w-full h-full object-cover" />
+      </div>
+      <div className="px-4 py-3 space-y-2">
+        <div className="flex items-center gap-4">
+          <button type="button" onClick={handleLike} className="flex items-center gap-1.5">
+            <motion.div whileTap={{ scale: 1.3 }}>
+              <svg viewBox="0 0 24 24" className={`w-6 h-6 ${liked ? "fill-red-500 stroke-red-500" : "fill-transparent stroke-foreground"}`} strokeWidth={2}>
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+              </svg>
+            </motion.div>
+            <span className="text-sm font-medium text-foreground">{localLikes.toLocaleString()}</span>
+          </button>
+          <button type="button" className="flex items-center gap-1.5">
+            <svg viewBox="0 0 24 24" className="w-6 h-6 fill-transparent stroke-foreground" strokeWidth={2}>
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+            <span className="text-sm font-medium text-foreground">{post.comments}</span>
+          </button>
+        </div>
+        <p className="text-sm text-foreground">
+          <span className="font-semibold">{post.username}</span>{" "}
+          <span className="text-muted-foreground">{post.caption}</span>
+        </p>
+      </div>
+    </motion.div>
+  );
+}
 
 export default function HomePage() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
 
-  // Auth guard: redirect unauthenticated users to login
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       navigate({ to: "/auth/login" });
@@ -75,181 +138,84 @@ export default function HomePage() {
   }, [isAuthenticated, authLoading, navigate]);
 
   const { data: feedPage, isLoading, isFetching } = useGetFeed(0n, 10n);
-
   const hasPosts = (feedPage?.posts?.length ?? 0) > 0;
-  const hasMore = feedPage?.nextOffset != null;
 
   return (
     <Layout>
-      {/* Sticky Header */}
       <header className="sticky top-0 z-40 bg-card/95 backdrop-blur-md border-b border-border px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Zap size={20} className="text-primary" strokeWidth={2.5} />
-          <span className="text-lg font-display font-bold text-foreground tracking-tight">
-            Social Mart
-          </span>
+          <span className="text-lg font-display font-bold text-foreground tracking-tight">Social Mart</span>
         </div>
         <div className="flex items-center gap-1">
-          {/* Theme toggle */}
           <button
             type="button"
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
             className="p-2 rounded-full hover:bg-muted transition-smooth"
-            aria-label="Toggle theme"
-            data-ocid="home.theme_toggle"
           >
-            {theme === "dark" ? (
-              <Sun size={20} strokeWidth={1.75} className="text-foreground" />
-            ) : (
-              <Moon size={20} strokeWidth={1.75} className="text-foreground" />
-            )}
+            {theme === "dark" ? <Sun size={20} strokeWidth={1.75} className="text-foreground" /> : <Moon size={20} strokeWidth={1.75} className="text-foreground" />}
           </button>
-          <button
-            type="button"
-            data-ocid="home.marketplace_button"
-            onClick={() => navigate({ to: "/marketplace" })}
-            className="p-2 rounded-full hover:bg-muted transition-smooth"
-            aria-label="Marketplace"
-          >
+          <button type="button" onClick={() => navigate({ to: "/marketplace" })} className="p-2 rounded-full hover:bg-muted transition-smooth">
             <Package size={22} strokeWidth={1.75} className="text-foreground" />
           </button>
-          <button
-            type="button"
-            data-ocid="home.notifications_button"
-            onClick={() => toast.info("Notifikasi segera hadir!")}
-            className="relative p-2 rounded-full hover:bg-muted transition-smooth"
-            aria-label="Notifications"
-          >
+          <button type="button" onClick={() => navigate({ to: "/notifications" })} className="relative p-2 rounded-full hover:bg-muted transition-smooth">
             <Bell size={22} strokeWidth={1.75} className="text-foreground" />
             <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-primary" />
           </button>
         </div>
       </header>
 
-      {/* Stories strip */}
-      <div className="flex gap-3 px-4 py-3 overflow-x-auto no-scrollbar border-b border-border/40">
-        {!isAuthenticated && (
+      {/* Stories */}
+      <div className="bg-card border-b border-border px-4 py-3">
+        <div className="flex gap-3 overflow-x-auto no-scrollbar">
+          {/* Add story button */}
           <button
             type="button"
-            data-ocid="home.login_cta"
-            onClick={() => navigate({ to: "/auth/login" })}
+            onClick={() => navigate({ to: "/story" })}
             className="flex flex-col items-center gap-1.5 shrink-0"
           >
-            <div className="h-14 w-14 rounded-full border-2 border-dashed border-primary/50 flex items-center justify-center bg-primary/5">
-              <span className="text-2xl text-primary font-light">+</span>
+            <div className="relative w-14 h-14 rounded-full bg-muted border-2 border-dashed border-border flex items-center justify-center">
+              <Plus size={20} className="text-muted-foreground" />
             </div>
-            <span className="text-[10px] text-muted-foreground">Sign in</span>
+            <span className="text-[10px] text-muted-foreground">Story</span>
           </button>
-        )}
-        {STORY_USERS.map((name) => (
-          <div
-            key={name}
-            className="flex flex-col items-center gap-1.5 shrink-0"
-          >
-            <Avatar
-              alt={name}
-              size="lg"
-              withRing
-              src={`https://api.dicebear.com/9.x/notionists/svg?seed=${name}`}
-            />
-            <span className="text-[10px] text-muted-foreground truncate max-w-[52px] text-center">
-              {name}
-            </span>
-          </div>
-        ))}
+
+          {SAMPLE_STORIES.map((story) => (
+            <button
+              key={story.username}
+              type="button"
+              onClick={() => navigate({ to: "/story" })}
+              className="flex flex-col items-center gap-1.5 shrink-0"
+            >
+              <div className={`p-0.5 rounded-full ${story.viewed ? "bg-border" : "bg-gradient-to-tr from-primary to-secondary"}`}>
+                <Avatar
+                  src={`https://api.dicebear.com/9.x/notionists/svg?seed=${story.seed}`}
+                  alt={story.username}
+                  size="sm"
+                />
+              </div>
+              <span className="text-[10px] text-muted-foreground truncate w-14 text-center">{story.username.split("_")[0]}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Feed */}
-      <div className="pb-6">
-        {isLoading ? (
-          <div className="flex flex-col">
-            {["sk-a", "sk-b", "sk-c"].map((k) => (
-              <div key={k} className="mx-4 my-2">
-                <PostCardSkeleton />
-              </div>
-            ))}
-          </div>
-        ) : hasPosts ? (
-          <>
-            <AnimatePresence initial={false}>
-              {feedPage!.posts.map((post, i) => (
-                <PostCard key={post.postId} post={post} index={i} />
-              ))}
-            </AnimatePresence>
-
-            {/* Load more */}
-            {hasMore && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="flex justify-center mt-4 mb-2"
-              >
-                <p
-                  className="text-center text-xs text-muted-foreground py-4"
-                  data-ocid="feed.load_more_button"
-                >
-                  {isFetching ? "Loading more posts…" : "Scroll for more"}
-                </p>
-              </motion.div>
-            )}
-
-            {!hasMore && feedPage!.posts.length > 0 && (
-              <p
-                className="text-center text-xs text-muted-foreground py-6"
-                data-ocid="feed.end_state"
-              >
-                You’re all caught up ✨
-              </p>
-            )}
-          </>
-        ) : (
-          <SampleFeed />
-        )}
+      <div className="flex flex-col gap-4 px-4 py-4 pb-8">
+        <AnimatePresence mode="popLayout">
+          {(isLoading || isFetching) && !hasPosts &&
+            Array.from({ length: 3 }).map((_, i) => <PostCardSkeleton key={i} />)
+          }
+          {hasPosts
+            ? feedPage?.posts.map((post: PostPublic) => (
+                <PostCard key={post.id.toString()} post={post} />
+              ))
+            : !isLoading && SAMPLE_POSTS.map((post) => (
+                <SamplePostCard key={post.id} post={post} />
+              ))
+          }
+        </AnimatePresence>
       </div>
     </Layout>
   );
 }
-
-// ─── Sample feed (when no backend posts yet) ─────────────────────────────────
-function SampleFeed() {
-  return (
-    <div className="flex flex-col" data-ocid="feed.sample_list">
-      {SAMPLE_POSTS.map((p, i) => (
-        <SamplePostCard key={p.id} post={p} index={i} />
-      ))}
-      <p
-        className="text-center text-xs text-muted-foreground py-6"
-        data-ocid="feed.empty_state"
-      >
-        Be the first to share something! 🚀
-      </p>
-    </div>
-  );
-}
-
-function sampleToPostPublic(p: SamplePost): PostPublic {
-  return {
-    postId: p.id,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    userId: { toString: () => p.seed } as PostPublic["userId"],
-    imageUrl: p.image,
-    caption: p.caption,
-    likesCount: BigInt(p.likes),
-    commentsCount: BigInt(p.comments),
-    createdAt: p.createdAt,
-  };
-}
-
-function SamplePostCard({ post, index }: { post: SamplePost; index: number }) {
-  return (
-    <PostCard
-      index={index}
-      username={post.username}
-      avatarUrl={`https://api.dicebear.com/9.x/notionists/svg?seed=${post.seed}`}
-      post={sampleToPostPublic(post)}
-    />
-  );
-}
-
-// Remove unused icon
-void ChevronDown;
