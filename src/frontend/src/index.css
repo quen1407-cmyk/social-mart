@@ -2,19 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
-@font-face {
-  font-family: "Space Grotesk";
-  src: url("/assets/fonts/SpaceGrotesk.woff2") format("woff2");
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "General Sans";
-  src: url("/assets/fonts/GeneralSans.woff2") format("woff2");
-  font-display: swap;
-}
-
 @layer base {
+  /* ── LIGHT THEME ─────────────────────────────────────── */
   :root {
     --font-display: "Space Grotesk";
     --font-body: "General Sans";
@@ -62,6 +51,7 @@
     --sidebar-ring: 0.35 0 0;
   }
 
+  /* ── DARK THEME ──────────────────────────────────────── */
   .dark {
     --background: 0.145 0.01 260;
     --foreground: 0.95 0.008 260;
@@ -113,6 +103,17 @@
 }
 
 @layer utilities {
+  @font-face {
+    font-family: "Space Grotesk";
+    src: url("/assets/fonts/SpaceGrotesk.woff2") format("woff2");
+    font-display: swap;
+  }
+
+  @font-face {
+    font-family: "General Sans";
+    src: url("/assets/fonts/GeneralSans.woff2") format("woff2");
+    font-display: swap;
+  }
   .transition-smooth {
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
@@ -120,13 +121,18 @@
   .feed-card {
     background: oklch(var(--card));
     border-radius: calc(var(--radius) + 0.5rem);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid oklch(var(--border));
+  }
+
+  .dark .feed-card {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   }
 
   .feed-card:active {
     transform: scale(0.98);
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
   }
 
   .avatar-ring {
@@ -153,5 +159,9 @@
 }
 
 .shadow-subtle {
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.dark .shadow-subtle {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
