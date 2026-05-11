@@ -1,0 +1,32 @@
+{
+  "name": "Social Mart",
+  "short_name": "Social Mart",
+  "description": "Discover products, connect with creators, and shop — by JoyDev",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#18181f",
+  "theme_color": "#18181f",
+  "orientation": "portrait",
+  "scope": "/",
+  "lang": "id",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["social", "shopping"],
+  "shortcuts": [
+    { "name": "Beranda", "url": "/" },
+    { "name": "Marketplace", "url": "/marketplace" },
+    { "name": "Reels", "url": "/reels" }
+  ]
+}
