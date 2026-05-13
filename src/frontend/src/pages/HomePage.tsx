@@ -1,15 +1,13 @@
 import { Layout } from "@/components/layout/Layout";
 import { Avatar } from "@/components/shared/Avatar";
-import { supabase, type Post, type Story } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "@tanstack/react-router";
 import { Bell, Heart, MessageCircle, Moon, Plus, Search, Send, Sun, Zap } from "lucide-react";
-import { motion, AnimatePresence } from "motion/react";
+import { motion } from "motion/react";
 import { useTheme } from "next-themes";
-import { useState, useEffect } from "react";
-import { toast } from "sonner";
+import { useState } from "react";
 
-const SAMPLE_STORIES = [
+const STORIES = [
   { username: "aurora_styles", seed: "aurora", viewed: false },
   { username: "tech_by_kai", seed: "kai", viewed: false },
   { username: "mia.creates", seed: "mia", viewed: true },
@@ -17,125 +15,72 @@ const SAMPLE_STORIES = [
   { username: "zenbrews", seed: "zen", viewed: true },
 ];
 
-const FALLBACK_POSTS = [
-  { id: "1", username: "aurora_styles", seed: "aurora", imgSeed: "post1", imgBg: "b6e3f4", caption: "New collection just dropped! ✨ #OOTD #fashion", likes: 2847, comments: 134, time: "2j", image_url: "" },
-  { id: "2", username: "tech_by_kai", seed: "kai", imgSeed: "post2", imgBg: "c0aede", caption: "Setup tour 🖥️ Everything linked in marketplace! #techsetup", likes: 5102, comments: 287, time: "4j", image_url: "" },
-  { id: "3", username: "glowlab.id", seed: "glow", imgSeed: "post3", imgBg: "d1f4cc", caption: "Glass skin routine 🧴 30 days challenge! #skincare", likes: 4410, comments: 320, time: "6j", image_url: "" },
+const POSTS = [
+  { id: "1", username: "aurora_styles", seed: "aurora", imgSeed: "post1", imgBg: "b6e3f4", caption: "New collection just dropped! ✨ Minimal premium fashion #OOTD #fashion", likes: 2847, comments: 134, time: "2j" },
+  { id: "2", username: "tech_by_kai", seed: "kai", imgSeed: "post2", imgBg: "c0aede", caption: "Setup tour 🖥️ Everything linked in marketplace! #techsetup", likes: 5102, comments: 287, time: "4j" },
+  { id: "3", username: "glowlab.id", seed: "glow", imgSeed: "post3", imgBg: "d1f4cc", caption: "Glass skin routine 🧴 30 days challenge! #skincare #glowup", likes: 4410, comments: 320, time: "6j" },
+  { id: "4", username: "mia.creates", seed: "mia", imgSeed: "post4", imgBg: "ffd5dc", caption: "Handmade with love 🎨 Each piece is unique! #handmade", likes: 1920, comments: 98, time: "8j" },
 ];
 
-function timeAgo(dateStr: string) {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 60) return `${mins}m`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}j`;
-  return `${Math.floor(hours / 24)}h`;
-}
-
-function PostCard({ post, seed, imgSeed, imgBg, time, commentCount }: {
-  post: any; seed: string; imgSeed: string; imgBg: string; time: string; commentCount: number;
-}) {
+function PostCard({ post }: { post: typeof POSTS[0] }) {
   const [liked, setLiked] = useState(false);
-  const [likes, setLikes] = useState(post.likes || 0);
+  const [likes, setLikes] = useState(post.likes);
   const [showComments, setShowComments] = useState(false);
-  const [comments, setComments] = useState<any[]>([]);
+  const [comments, setComments] = useState<{ id: string; username: string; content: string }[]>([]);
   const [newComment, setNewComment] = useState("");
   const navigate = useNavigate();
-
-  async function loadComments() {
-    const { data } = await supabase.from("comments").select("*").eq("post_id", post.id).order("created_at", { ascending: true });
-    if (data) setComments(data);
-  }
-
-  async function handleLike() {
-    const newLikes = liked ? likes - 1 : likes + 1;
-    setLiked(!liked);
-    setLikes(newLikes);
-    if (post.id && !post.id.startsWith("f")) {
-      await supabase.from("posts").update({ likes: newLikes }).eq("id", post.id);
-    }
-  }
-
-  async function submitComment() {
-    if (!newComment.trim()) return;
-    const comment = { post_id: post.id, username: "Joy", content: newComment };
-    setComments(prev => [...prev, { ...comment, id: Date.now().toString(), created_at: new Date().toISOString() }]);
-    setNewComment("");
-    if (!post.id.startsWith("f")) {
-      await supabase.from("comments").insert(comment);
-    }
-  }
 
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="bg-card border border-border rounded-2xl overflow-hidden">
       <div className="flex items-center gap-3 px-4 py-3">
-        <button type="button" onClick={() => navigate({ to: "/profile/$uid", params: { uid: seed } })}>
-          <Avatar src={`https://api.dicebear.com/9.x/notionists/svg?seed=${seed}`} alt={post.username} size="sm" withRing />
+        <button type="button" onClick={() => navigate({ to: "/profile/$uid", params: { uid: post.seed } })}>
+          <Avatar src={`https://api.dicebear.com/9.x/notionists/svg?seed=${post.seed}`} alt={post.username} size="sm" withRing />
         </button>
         <div className="flex-1">
           <p className="text-sm font-semibold text-foreground">{post.username}</p>
-          <p className="text-[11px] text-muted-foreground">{time} yang lalu</p>
+          <p className="text-[11px] text-muted-foreground">{post.time} yang lalu</p>
         </div>
         <button type="button" className="text-xs text-primary font-semibold border border-primary/30 px-3 py-1 rounded-full">Ikuti</button>
       </div>
-
       <div className="aspect-square bg-muted">
-        {post.image_url ? (
-          <img src={post.image_url} alt="" className="w-full h-full object-cover" />
-        ) : (
-          <img src={`https://api.dicebear.com/9.x/shapes/svg?seed=${imgSeed}&backgroundColor=${imgBg}`} alt="" className="w-full h-full object-cover" />
-        )}
+        <img src={`https://api.dicebear.com/9.x/shapes/svg?seed=${post.imgSeed}&backgroundColor=${post.imgBg}`} alt="" className="w-full h-full object-cover" />
       </div>
-
       <div className="px-4 py-3 space-y-2">
         <div className="flex items-center gap-4">
-          <button type="button" onClick={handleLike} className="flex items-center gap-1.5">
+          <button type="button" onClick={() => { setLiked(!liked); setLikes(liked ? likes - 1 : likes + 1); }} className="flex items-center gap-1.5">
             <motion.div whileTap={{ scale: 1.3 }}>
               <Heart size={22} className={cn("transition-all", liked ? "fill-red-500 stroke-red-500" : "stroke-foreground fill-transparent")} />
             </motion.div>
             <span className="text-sm font-medium text-foreground">{likes.toLocaleString()}</span>
           </button>
-          <button type="button" onClick={() => { setShowComments(!showComments); if (!showComments) loadComments(); }} className="flex items-center gap-1.5">
+          <button type="button" onClick={() => setShowComments(!showComments)} className="flex items-center gap-1.5">
             <MessageCircle size={22} className="stroke-foreground fill-transparent" />
-            <span className="text-sm font-medium text-foreground">{comments.length || commentCount}</span>
+            <span className="text-sm font-medium text-foreground">{comments.length + post.comments}</span>
           </button>
           <button type="button" className="ml-auto"><Send size={20} className="stroke-foreground fill-transparent" /></button>
         </div>
-
         <p className="text-sm text-foreground">
           <span className="font-semibold">{post.username}</span>{" "}
           <span className="text-muted-foreground">{post.caption}</span>
         </p>
-
-        {/* Comments section */}
-        <AnimatePresence>
-          {showComments && (
-            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="space-y-2 border-t border-border pt-2">
-              {comments.length === 0 && <p className="text-xs text-muted-foreground">Belum ada komentar</p>}
-              {comments.map(c => (
-                <div key={c.id} className="flex items-start gap-2">
-                  <Avatar src={`https://api.dicebear.com/9.x/notionists/svg?seed=${c.username}`} alt={c.username} size="sm" />
-                  <div className="flex-1 bg-muted rounded-xl px-3 py-2">
-                    <p className="text-xs font-semibold text-foreground">{c.username}</p>
-                    <p className="text-xs text-muted-foreground">{c.content}</p>
-                  </div>
+        {showComments && (
+          <div className="space-y-2 border-t border-border pt-2">
+            {comments.length === 0 && <p className="text-xs text-muted-foreground">Belum ada komentar</p>}
+            {comments.map(c => (
+              <div key={c.id} className="flex items-start gap-2">
+                <Avatar src={`https://api.dicebear.com/9.x/notionists/svg?seed=${c.username}`} alt={c.username} size="sm" />
+                <div className="flex-1 bg-muted rounded-xl px-3 py-2">
+                  <p className="text-xs font-semibold text-foreground">{c.username}</p>
+                  <p className="text-xs text-muted-foreground">{c.content}</p>
                 </div>
-              ))}
-              <div className="flex gap-2 mt-2">
-                <input
-                  value={newComment}
-                  onChange={e => setNewComment(e.target.value)}
-                  onKeyDown={e => e.key === "Enter" && submitComment()}
-                  placeholder="Tulis komentar..."
-                  className="flex-1 bg-muted border border-border rounded-full px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
-                />
-                <button type="button" onClick={submitComment} className="px-3 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-semibold">
-                  Kirim
-                </button>
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            ))}
+            <div className="flex gap-2">
+              <input value={newComment} onChange={e => setNewComment(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && newComment.trim()) { setComments(prev => [...prev, { id: Date.now().toString(), username: "Joy", content: newComment }]); setNewComment(""); }}} placeholder="Tulis komentar..." className="flex-1 bg-muted border border-border rounded-full px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary/40" />
+              <button type="button" onClick={() => { if (newComment.trim()) { setComments(prev => [...prev, { id: Date.now().toString(), username: "Joy", content: newComment }]); setNewComment(""); }}} className="px-3 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-semibold">Kirim</button>
+            </div>
+          </div>
+        )}
       </div>
     </motion.div>
   );
@@ -144,30 +89,6 @@ function PostCard({ post, seed, imgSeed, imgBg, time, commentCount }: {
 export default function HomePage() {
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
-  const [posts, setPosts] = useState<any[]>([]);
-  const [stories, setStories] = useState(SAMPLE_STORIES);
-  const [loading, setLoading] = useState(true);
-  const [dbStories, setDbStories] = useState<Story[]>([]);
-
-  useEffect(() => {
-    loadPosts();
-    loadStories();
-  }, []);
-
-  async function loadPosts() {
-    const { data } = await supabase.from("posts").select("*").order("created_at", { ascending: false }).limit(20);
-    if (data && data.length > 0) {
-      setPosts(data.map(p => ({ ...p, seed: p.username.split("_")[0], imgSeed: p.id, imgBg: "b6e3f4" })));
-    } else {
-      setPosts(FALLBACK_POSTS);
-    }
-    setLoading(false);
-  }
-
-  async function loadStories() {
-    const { data } = await supabase.from("stories").select("*").gt("expires_at", new Date().toISOString()).order("created_at", { ascending: false });
-    if (data) setDbStories(data);
-  }
 
   return (
     <Layout>
@@ -188,16 +109,13 @@ export default function HomePage() {
           </div>
         </div>
         <button type="button" onClick={() => navigate({ to: "/search" })} className="flex items-center gap-2 w-full bg-muted border border-border rounded-xl px-3 py-2.5 text-sm text-muted-foreground hover:border-primary/40 transition-smooth">
-          <Search size={15} className="text-muted-foreground shrink-0" />
+          <Search size={15} className="shrink-0" />
           <span>Cari akun, produk, hashtag...</span>
         </button>
       </header>
-
       <div className="bg-secondary/10 border-b border-secondary/20 px-4 py-1.5 flex items-center justify-center">
         <span className="text-[10px] font-semibold text-secondary">🚧 Dalam Tahap Pengembangan oleh JoyDev</span>
       </div>
-
-      {/* Stories */}
       <div className="bg-card border-b border-border px-4 py-3">
         <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
           <button type="button" onClick={() => navigate({ to: "/story" })} className="flex flex-col items-center gap-1.5 shrink-0">
@@ -206,19 +124,7 @@ export default function HomePage() {
             </div>
             <span className="text-[10px] text-muted-foreground">Story</span>
           </button>
-
-          {/* DB stories */}
-          {dbStories.map(s => (
-            <button key={s.id} type="button" onClick={() => navigate({ to: "/story" })} className="flex flex-col items-center gap-1.5 shrink-0">
-              <div className="p-0.5 rounded-full bg-gradient-to-tr from-primary to-secondary">
-                <Avatar src={`https://api.dicebear.com/9.x/notionists/svg?seed=${s.username}`} alt={s.username} size="sm" />
-              </div>
-              <span className="text-[10px] text-muted-foreground truncate w-14 text-center">{s.username}</span>
-            </button>
-          ))}
-
-          {/* Sample stories */}
-          {SAMPLE_STORIES.map(s => (
+          {STORIES.map(s => (
             <button key={s.username} type="button" onClick={() => navigate({ to: "/story" })} className="flex flex-col items-center gap-1.5 shrink-0">
               <div className={cn("p-0.5 rounded-full", s.viewed ? "bg-border" : "bg-gradient-to-tr from-primary to-secondary")}>
                 <Avatar src={`https://api.dicebear.com/9.x/notionists/svg?seed=${s.seed}`} alt={s.username} size="sm" />
@@ -228,39 +134,8 @@ export default function HomePage() {
           ))}
         </div>
       </div>
-
-      {/* Feed */}
       <div className="flex flex-col gap-4 px-4 py-4 pb-24">
-        {loading ? (
-          Array.from({ length: 2 }).map((_, i) => (
-            <div key={i} className="bg-card border border-border rounded-2xl overflow-hidden animate-pulse">
-              <div className="flex items-center gap-3 px-4 py-3">
-                <div className="w-9 h-9 rounded-full bg-muted" />
-                <div className="flex-1 space-y-1">
-                  <div className="h-3 bg-muted rounded w-24" />
-                  <div className="h-2 bg-muted rounded w-16" />
-                </div>
-              </div>
-              <div className="aspect-square bg-muted" />
-              <div className="p-4 space-y-2">
-                <div className="h-3 bg-muted rounded w-32" />
-                <div className="h-3 bg-muted rounded w-48" />
-              </div>
-            </div>
-          ))
-        ) : (
-          posts.map(post => (
-            <PostCard
-              key={post.id}
-              post={post}
-              seed={post.seed || post.username?.split("_")[0] || "user"}
-              imgSeed={post.imgSeed || post.id}
-              imgBg={post.imgBg || "b6e3f4"}
-              time={post.time || (post.created_at ? timeAgo(post.created_at) : "2j")}
-              commentCount={post.comments || 0}
-            />
-          ))
-        )}
+        {POSTS.map(post => <PostCard key={post.id} post={post} />)}
       </div>
     </Layout>
   );
