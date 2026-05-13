@@ -1,20 +1,11 @@
 import { Layout } from "@/components/layout/Layout";
 import { Avatar } from "@/components/shared/Avatar";
+import { supabase, type Story } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
-import { Camera, ChevronRight, Image, Plus, Search, Tag, Users, Video, X } from "lucide-react";
+import { Camera, ChevronRight, Image, Plus, Search, Tag, Video, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-
-type Story = { username: string; seed: string; viewed: boolean; previewUrl?: string };
-
-const INITIAL_STORIES: Story[] = [
-  { username: "aurora_styles", seed: "aurora", viewed: false },
-  { username: "tech_by_kai", seed: "kai", viewed: false },
-  { username: "mia.creates", seed: "mia", viewed: true },
-  { username: "glowlab.id", seed: "glow", viewed: false },
-  { username: "zenbrews", seed: "zen", viewed: true },
-];
 
 const SAMPLE_USERS = [
   { username: "aurora_styles", seed: "aurora" },
@@ -25,83 +16,132 @@ const SAMPLE_USERS = [
 ];
 
 export default function StoryPage() {
-  const [stories, setStories] = useState<Story[]>(INITIAL_STORIES);
+  const [stories, setStories] = useState<Story[]>([]);
   const [myStory, setMyStory] = useState<Story | null>(null);
   const [step, setStep] = useState<"list" | "create" | "preview">("list");
   const [preview, setPreview] = useState<string | null>(null);
+  const [previewFile, setPreviewFile] = useState<File | null>(null);
   const [caption, setCaption] = useState("");
   const [tagSearch, setTagSearch] = useState("");
   const [taggedUsers, setTaggedUsers] = useState<string[]>([]);
   const [showTagPanel, setShowTagPanel] = useState(false);
   const [viewingStory, setViewingStory] = useState<Story | null>(null);
-  const [viewProgress, setViewProgress] = useState(0);
+  const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const filteredUsers = SAMPLE_USERS.filter(u => u.username.includes(tagSearch) && !taggedUsers.includes(u.username));
 
+  useEffect(() => {
+    loadStories();
+    const interval = setInterval(loadStories, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  async function loadStories() {
+    const { data } = await supabase
+      .from("stories")
+      .select("*")
+      .gt("expires_at", new Date().toISOString())
+      .order("created_at", { ascending: false });
+    if (data) {
+      const mine = data.find(s => s.username === "Joy");
+      const others = data.filter(s => s.username !== "Joy");
+      if (mine) setMyStory(mine);
+      setStories(others);
+    }
+  }
+
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    setPreviewFile(file);
     setPreview(URL.createObjectURL(file));
     setStep("preview");
   }
 
-  function uploadStory() {
-    const newStory: Story = {
-      username: "Kamu",
-      seed: "me",
-      viewed: false,
-      previewUrl: preview ?? undefined,
+  async function uploadStory() {
+    setUploading(true);
+    let media_url = "";
+
+    if (previewFile) {
+      const ext = previewFile.name.split(".").pop();
+      const path = `stories/${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from("media").upload(path, previewFile);
+      if (!error) {
+        const { data } = supabase.storage.from("media").getPublicUrl(path);
+        media_url = data.publicUrl;
+      }
+    }
+
+    const storyData = {
+      username: "Joy",
+      media_url,
+      caption,
+      tagged_users: taggedUsers,
+      expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
     };
-    setMyStory(newStory);
-    toast.success("Story berhasil diunggah! 🎉");
+
+    const { data, error } = await supabase.from("stories").insert(storyData).select().single();
+    setUploading(false);
+
+    if (!error && data) {
+      setMyStory(data);
+      toast.success("Story berhasil diunggah! 🎉");
+    } else {
+      toast.error("Gagal upload story");
+    }
+
     setStep("list");
     setPreview(null);
     setCaption("");
     setTaggedUsers([]);
+    loadStories();
   }
 
-  function viewStory(story: Story) {
-    setViewingStory(story);
-    setViewProgress(0);
-    setStories(prev => prev.map(s => s.username === story.username ? { ...s, viewed: true } : s));
+  function timeLeft(expiresAt: string) {
+    const diff = new Date(expiresAt).getTime() - Date.now();
+    const hours = Math.floor(diff / 3600000);
+    const mins = Math.floor((diff % 3600000) / 60000);
+    if (hours > 0) return `${hours}j tersisa`;
+    return `${mins}m tersisa`;
   }
 
   if (viewingStory) {
     return (
       <div className="fixed inset-0 z-50 bg-black">
-        <div className="absolute inset-0 bg-gradient-to-b from-violet-900 via-purple-800 to-indigo-900 flex items-center justify-center">
-          {viewingStory.previewUrl
-            ? <img src={viewingStory.previewUrl} alt="" className="w-full h-full object-cover" />
-            : <div className="text-8xl">✨</div>
-          }
+        <div className="absolute inset-0">
+          {viewingStory.media_url ? (
+            <img src={viewingStory.media_url} alt="" className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-b from-violet-900 via-purple-800 to-indigo-900 flex items-center justify-center">
+              <div className="text-8xl">✨</div>
+            </div>
+          )}
         </div>
-        {/* Progress bar */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/40 pointer-events-none" />
         <div className="absolute top-4 left-4 right-4">
           <div className="h-0.5 bg-white/30 rounded-full overflow-hidden">
-            <motion.div
-              initial={{ width: "0%" }}
-              animate={{ width: "100%" }}
-              transition={{ duration: 5, ease: "linear" }}
-              onAnimationComplete={() => setViewingStory(null)}
-              className="h-full bg-white rounded-full"
-            />
+            <motion.div initial={{ width: "0%" }} animate={{ width: "100%" }} transition={{ duration: 5, ease: "linear" }} onAnimationComplete={() => setViewingStory(null)} className="h-full bg-white rounded-full" />
           </div>
         </div>
-        {/* Header */}
         <div className="absolute top-8 left-4 right-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Avatar src={`https://api.dicebear.com/9.x/notionists/svg?seed=${viewingStory.seed}`} alt={viewingStory.username} size="sm" withRing />
+            <Avatar src={`https://api.dicebear.com/9.x/notionists/svg?seed=${viewingStory.username}`} alt={viewingStory.username} size="sm" withRing />
             <span className="text-white font-semibold text-sm drop-shadow">{viewingStory.username}</span>
-            <span className="text-white/60 text-xs">2j</span>
+            <span className="text-white/60 text-xs">{timeLeft(viewingStory.expires_at)}</span>
           </div>
           <button type="button" onClick={() => setViewingStory(null)} className="p-2 rounded-full bg-black/30">
             <X size={20} className="text-white" />
           </button>
         </div>
-        {taggedUsers.length > 0 && (
-          <div className="absolute bottom-20 left-4 flex flex-wrap gap-1">
-            {taggedUsers.map(u => (
+        {viewingStory.caption && (
+          <div className="absolute bottom-20 left-4 right-4">
+            <p className="text-white text-sm drop-shadow text-center">{viewingStory.caption}</p>
+          </div>
+        )}
+        {viewingStory.tagged_users?.length > 0 && (
+          <div className="absolute bottom-10 left-4 flex flex-wrap gap-1">
+            {viewingStory.tagged_users.map(u => (
               <span key={u} className="bg-black/60 text-white text-xs px-2 py-0.5 rounded-full">@{u}</span>
             ))}
           </div>
@@ -119,8 +159,8 @@ export default function StoryPage() {
           </button>
           <h1 className="text-base font-display font-bold text-foreground flex-1">Buat Story</h1>
           {step === "preview" && (
-            <button type="button" onClick={uploadStory} className="px-4 py-1.5 rounded-full bg-primary text-primary-foreground text-sm font-bold">
-              Bagikan
+            <button type="button" onClick={uploadStory} disabled={uploading} className="px-4 py-1.5 rounded-full bg-primary text-primary-foreground text-sm font-bold disabled:opacity-60">
+              {uploading ? "Mengunggah..." : "Bagikan"}
             </button>
           )}
         </header>
@@ -194,26 +234,26 @@ export default function StoryPage() {
 
   return (
     <Layout>
-      <header className="sticky top-0 z-40 bg-card/95 backdrop-blur-md border-b border-border px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Users size={18} className="text-primary" />
-          <h1 className="text-base font-display font-bold text-foreground">Story</h1>
-        </div>
+      <header className="sticky top-0 z-40 bg-card/95 backdrop-blur-md border-b border-border px-4 py-3">
+        <h1 className="text-base font-display font-bold text-foreground">Story</h1>
       </header>
       <div className="px-4 py-4 space-y-4">
-        {/* My story */}
         <div>
           <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Story Kamu</h2>
           {myStory ? (
-            <button type="button" onClick={() => viewStory(myStory)} className="flex items-center gap-3 w-full p-3 rounded-2xl bg-card border border-border">
+            <button type="button" onClick={() => setViewingStory(myStory)} className="flex items-center gap-3 w-full p-3 rounded-2xl bg-card border border-primary/30">
               <div className="p-0.5 rounded-full bg-gradient-to-tr from-primary to-secondary">
-                <Avatar src={myStory.previewUrl ?? `https://api.dicebear.com/9.x/notionists/svg?seed=me`} alt="Kamu" size="md" />
+                {myStory.media_url ? (
+                  <img src={myStory.media_url} alt="" className="w-12 h-12 rounded-full object-cover" />
+                ) : (
+                  <Avatar src="https://api.dicebear.com/9.x/notionists/svg?seed=me" alt="Joy" size="md" />
+                )}
               </div>
-              <div className="text-left">
+              <div className="text-left flex-1">
                 <p className="text-sm font-semibold text-foreground">Story kamu</p>
-                <p className="text-xs text-muted-foreground">Baru saja • Klik untuk lihat</p>
+                <p className="text-xs text-muted-foreground">{timeLeft(myStory.expires_at)}</p>
               </div>
-              <button type="button" onClick={e => { e.stopPropagation(); setStep("create"); }} className="ml-auto p-2 rounded-full bg-muted">
+              <button type="button" onClick={e => { e.stopPropagation(); setStep("create"); }} className="p-2 rounded-full bg-muted">
                 <Plus size={16} className="text-foreground" />
               </button>
             </button>
@@ -224,31 +264,36 @@ export default function StoryPage() {
               </div>
               <div className="text-left">
                 <p className="text-sm font-semibold text-foreground">Buat Story</p>
-                <p className="text-xs text-muted-foreground">Bagikan momen kamu</p>
+                <p className="text-xs text-muted-foreground">Akan hilang dalam 24 jam</p>
               </div>
               <ChevronRight size={16} className="text-muted-foreground ml-auto" />
             </button>
           )}
         </div>
 
-        {/* Others stories */}
-        <div>
-          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Story Teman</h2>
-          <div className="space-y-2">
-            {stories.map((story, i) => (
-              <motion.button key={story.username} type="button" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} onClick={() => viewStory(story)} className="flex items-center gap-3 w-full p-3 rounded-2xl hover:bg-muted/50 transition-smooth">
-                <div className={cn("p-0.5 rounded-full", story.viewed ? "bg-border" : "bg-gradient-to-tr from-primary to-secondary")}>
-                  <Avatar src={`https://api.dicebear.com/9.x/notionists/svg?seed=${story.seed}`} alt={story.username} size="md" />
-                </div>
-                <div className="text-left flex-1">
-                  <p className={cn("text-sm font-semibold", story.viewed ? "text-muted-foreground" : "text-foreground")}>{story.username}</p>
-                  <p className="text-xs text-muted-foreground">2 jam yang lalu</p>
-                </div>
-                {!story.viewed && <div className="w-2 h-2 rounded-full bg-primary" />}
-              </motion.button>
-            ))}
+        {stories.length > 0 && (
+          <div>
+            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Story Teman</h2>
+            <div className="space-y-2">
+              {stories.map((story, i) => (
+                <motion.button key={story.id} type="button" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} onClick={() => setViewingStory(story)} className="flex items-center gap-3 w-full p-3 rounded-2xl hover:bg-muted/50 transition-smooth">
+                  <div className="p-0.5 rounded-full bg-gradient-to-tr from-primary to-secondary">
+                    {story.media_url ? (
+                      <img src={story.media_url} alt="" className="w-12 h-12 rounded-full object-cover" />
+                    ) : (
+                      <Avatar src={`https://api.dicebear.com/9.x/notionists/svg?seed=${story.username}`} alt={story.username} size="md" />
+                    )}
+                  </div>
+                  <div className="text-left flex-1">
+                    <p className="text-sm font-semibold text-foreground">{story.username}</p>
+                    <p className="text-xs text-muted-foreground">{timeLeft(story.expires_at)}</p>
+                  </div>
+                  <div className="w-2 h-2 rounded-full bg-primary" />
+                </motion.button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </Layout>
   );
