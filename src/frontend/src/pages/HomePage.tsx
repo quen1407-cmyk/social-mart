@@ -25,11 +25,7 @@ const POSTS = [
 function PostCard({ post }: { post: typeof POSTS[0] }) {
   const [liked, setLiked] = useState(false);
   const [likes, setLikes] = useState(post.likes);
-  const [showComments, setShowComments] = useState(false);
-  const [comments, setComments] = useState<{ id: string; username: string; content: string }[]>([]);
-  const [newComment, setNewComment] = useState("");
   const navigate = useNavigate();
-
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="bg-card border border-border rounded-2xl overflow-hidden">
       <div className="flex items-center gap-3 px-4 py-3">
@@ -53,9 +49,9 @@ function PostCard({ post }: { post: typeof POSTS[0] }) {
             </motion.div>
             <span className="text-sm font-medium text-foreground">{likes.toLocaleString()}</span>
           </button>
-          <button type="button" onClick={() => setShowComments(!showComments)} className="flex items-center gap-1.5">
+          <button type="button" className="flex items-center gap-1.5">
             <MessageCircle size={22} className="stroke-foreground fill-transparent" />
-            <span className="text-sm font-medium text-foreground">{comments.length + post.comments}</span>
+            <span className="text-sm font-medium text-foreground">{post.comments}</span>
           </button>
           <button type="button" className="ml-auto"><Send size={20} className="stroke-foreground fill-transparent" /></button>
         </div>
@@ -63,24 +59,7 @@ function PostCard({ post }: { post: typeof POSTS[0] }) {
           <span className="font-semibold">{post.username}</span>{" "}
           <span className="text-muted-foreground">{post.caption}</span>
         </p>
-        {showComments && (
-          <div className="space-y-2 border-t border-border pt-2">
-            {comments.length === 0 && <p className="text-xs text-muted-foreground">Belum ada komentar</p>}
-            {comments.map(c => (
-              <div key={c.id} className="flex items-start gap-2">
-                <Avatar src={`https://api.dicebear.com/9.x/notionists/svg?seed=${c.username}`} alt={c.username} size="sm" />
-                <div className="flex-1 bg-muted rounded-xl px-3 py-2">
-                  <p className="text-xs font-semibold text-foreground">{c.username}</p>
-                  <p className="text-xs text-muted-foreground">{c.content}</p>
-                </div>
-              </div>
-            ))}
-            <div className="flex gap-2">
-              <input value={newComment} onChange={e => setNewComment(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && newComment.trim()) { setComments(prev => [...prev, { id: Date.now().toString(), username: "Joy", content: newComment }]); setNewComment(""); }}} placeholder="Tulis komentar..." className="flex-1 bg-muted border border-border rounded-full px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary/40" />
-              <button type="button" onClick={() => { if (newComment.trim()) { setComments(prev => [...prev, { id: Date.now().toString(), username: "Joy", content: newComment }]); setNewComment(""); }}} className="px-3 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-semibold">Kirim</button>
-            </div>
-          </div>
-        )}
+        <button type="button" className="text-xs text-muted-foreground">Lihat semua {post.comments} komentar</button>
       </div>
     </motion.div>
   );
@@ -89,9 +68,18 @@ function PostCard({ post }: { post: typeof POSTS[0] }) {
 export default function HomePage() {
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
+  const [searchQuery, setSearchQuery] = useState("");
+
+  function handleSearch(e: React.FormEvent) {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate({ to: "/search" });
+    }
+  }
 
   return (
     <Layout>
+      {/* Header */}
       <header className="sticky top-0 z-40 bg-card/95 backdrop-blur-md border-b border-border px-4 pt-3 pb-2 space-y-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -108,14 +96,21 @@ export default function HomePage() {
             </button>
           </div>
         </div>
-        <button type="button" onClick={() => navigate({ to: "/search" })} className="flex items-center gap-2 w-full bg-muted border border-border rounded-xl px-3 py-2.5 text-sm text-muted-foreground hover:border-primary/40 transition-smooth">
-          <Search size={15} className="shrink-0" />
-          <span>Cari akun, produk, hashtag...</span>
-        </button>
+        {/* Search bar di header */}
+        <form onSubmit={handleSearch}>
+          <button type="button" onClick={() => navigate({ to: "/search" })} className="flex items-center gap-2 w-full bg-muted border border-border rounded-xl px-3 py-2.5 text-sm text-muted-foreground hover:border-primary/40 transition-smooth">
+            <Search size={15} className="text-muted-foreground shrink-0" />
+            <span>Cari akun, produk, hashtag...</span>
+          </button>
+        </form>
       </header>
+
+      {/* Dev banner */}
       <div className="bg-secondary/10 border-b border-secondary/20 px-4 py-1.5 flex items-center justify-center">
         <span className="text-[10px] font-semibold text-secondary">🚧 Dalam Tahap Pengembangan oleh JoyDev</span>
       </div>
+
+      {/* Stories */}
       <div className="bg-card border-b border-border px-4 py-3">
         <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
           <button type="button" onClick={() => navigate({ to: "/story" })} className="flex flex-col items-center gap-1.5 shrink-0">
@@ -124,7 +119,7 @@ export default function HomePage() {
             </div>
             <span className="text-[10px] text-muted-foreground">Story</span>
           </button>
-          {STORIES.map(s => (
+          {STORIES.map((s) => (
             <button key={s.username} type="button" onClick={() => navigate({ to: "/story" })} className="flex flex-col items-center gap-1.5 shrink-0">
               <div className={cn("p-0.5 rounded-full", s.viewed ? "bg-border" : "bg-gradient-to-tr from-primary to-secondary")}>
                 <Avatar src={`https://api.dicebear.com/9.x/notionists/svg?seed=${s.seed}`} alt={s.username} size="sm" />
@@ -134,8 +129,10 @@ export default function HomePage() {
           ))}
         </div>
       </div>
+
+      {/* Feed */}
       <div className="flex flex-col gap-4 px-4 py-4 pb-24">
-        {POSTS.map(post => <PostCard key={post.id} post={post} />)}
+        {POSTS.map((post) => <PostCard key={post.id} post={post} />)}
       </div>
     </Layout>
   );
