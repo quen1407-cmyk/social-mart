@@ -1,95 +1,182 @@
-import { useAuth } from "@/hooks/use-auth";
+import { supabase } from "@/lib/supabase";
 import { useNavigate } from "@tanstack/react-router";
-import { ArrowRight, Shield, Zap } from "lucide-react";
+import { Eye, EyeOff, Lock, Mail, Zap } from "lucide-react";
 import { motion } from "motion/react";
-import { useEffect } from "react";
+import { useState } from "react";
+import { toast } from "sonner";
 
 export default function LoginPage() {
-  const { isAuthenticated, login, isLoading } = useAuth();
   const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPass, setShowPass] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [isRegister, setIsRegister] = useState(false);
+  const [username, setUsername] = useState("");
 
-  useEffect(() => {
-    if (isAuthenticated) navigate({ to: "/" });
-  }, [isAuthenticated, navigate]);
+  async function handleSubmit() {
+    if (!email || !password) {
+      toast.error("Email dan password harus diisi!");
+      return;
+    }
+    if (isRegister && !username) {
+      toast.error("Username harus diisi!");
+      return;
+    }
+
+    setLoading(true);
+
+    if (isRegister) {
+      // Daftar akun baru
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { username },
+        },
+      });
+
+      if (error) {
+        toast.error(error.message);
+        setLoading(false);
+        return;
+      }
+
+      if (data.user) {
+        // Buat profil
+        await supabase.from("profiles").upsert({
+          id: data.user.id,
+          username,
+          bio: "",
+          avatar_url: "",
+        });
+        toast.success("Akun berhasil dibuat! Silakan login 🎉");
+        setIsRegister(false);
+      }
+    } else {
+      // Login
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        if (error.message.includes("Invalid login credentials")) {
+          toast.error("Email atau password salah!");
+        } else {
+          toast.error(error.message);
+        }
+        setLoading(false);
+        return;
+      }
+
+      if (data.user) {
+        toast.success("Selamat datang kembali! 👋");
+        navigate({ to: "/" });
+      }
+    }
+
+    setLoading(false);
+  }
 
   return (
-    <div
-      data-ocid="login.page"
-      className="min-h-screen bg-background flex flex-col items-center justify-center px-6 relative overflow-hidden"
-    >
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
-      <div className="absolute bottom-1/4 left-1/4 w-48 h-48 rounded-full bg-secondary/10 blur-3xl pointer-events-none" />
-
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6 py-12">
+      {/* Logo */}
       <motion.div
-        initial={{ opacity: 0, y: 24 }}
+        initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: "easeOut" }}
-        className="w-full max-w-[380px] flex flex-col items-center gap-8 relative z-10"
+        className="flex flex-col items-center gap-3 mb-10"
       >
-        <div className="flex flex-col items-center gap-4">
-          <div className="h-16 w-16 rounded-2xl bg-primary/15 border border-primary/30 flex items-center justify-center shadow-card">
-            <Zap size={32} className="text-primary" strokeWidth={2.5} />
+        <div className="w-16 h-16 rounded-3xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+          <Zap size={32} className="text-primary" strokeWidth={2.5} />
+        </div>
+        <h1 className="text-2xl font-display font-bold text-foreground">Social Mart</h1>
+        <p className="text-sm text-muted-foreground">by JoyDev</p>
+      </motion.div>
+
+      {/* Form */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="w-full max-w-sm space-y-4"
+      >
+        <h2 className="text-xl font-display font-bold text-foreground text-center">
+          {isRegister ? "Buat Akun Baru" : "Masuk"}
+        </h2>
+        <p className="text-sm text-muted-foreground text-center">
+          {isRegister ? "Daftar untuk mulai menggunakan Social Mart" : "Masuk ke akun kamu"}
+        </p>
+
+        {isRegister && (
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">@</span>
+            <input
+              value={username}
+              onChange={e => setUsername(e.target.value.toLowerCase().replace(/\s/g, "_"))}
+              placeholder="username"
+              className="w-full bg-muted border border-border rounded-xl pl-8 pr-4 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+            />
           </div>
-          <div className="text-center">
-            <h1 className="text-3xl font-display font-bold text-foreground">
-              Social Mart
-            </h1>
-            <p className="text-muted-foreground text-sm mt-1">
-              Shop, connect, and discover
-            </p>
-          </div>
+        )}
+
+        <div className="relative">
+          <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            placeholder="Email"
+            className="w-full bg-muted border border-border rounded-xl pl-9 pr-4 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+          />
         </div>
 
-        <div className="w-full bg-card border border-border rounded-2xl p-6 space-y-6">
-          <div className="space-y-1 text-center">
-            <h2 className="text-lg font-display font-semibold text-foreground">
-              Welcome back
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              Sign in with Internet Identity to continue
-            </p>
-          </div>
+        <div className="relative">
+          <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type={showPass ? "text" : "password"}
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && handleSubmit()}
+            placeholder="Password"
+            className="w-full bg-muted border border-border rounded-xl pl-9 pr-10 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+          />
+          <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2">
+            {showPass ? <EyeOff size={16} className="text-muted-foreground" /> : <Eye size={16} className="text-muted-foreground" />}
+          </button>
+        </div>
 
-          <div className="flex items-start gap-3 bg-muted/50 rounded-xl p-3">
-            <Shield size={18} className="text-primary shrink-0 mt-0.5" />
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Internet Identity provides secure, passwordless authentication.
-            </p>
-          </div>
+        <button
+          type="button"
+          onClick={handleSubmit}
+          disabled={loading}
+          className="w-full py-3.5 rounded-2xl bg-primary text-primary-foreground font-display font-bold text-sm hover:opacity-90 transition-smooth disabled:opacity-60"
+        >
+          {loading ? "Memproses..." : isRegister ? "Daftar Sekarang" : "Masuk"}
+        </button>
 
+        <div className="text-center">
           <button
             type="button"
-            data-ocid="login.submit_button"
-            onClick={login}
-            disabled={isLoading}
-            className="w-full flex items-center justify-center gap-3 h-12 rounded-xl bg-primary text-primary-foreground font-display font-semibold text-sm transition-smooth hover:opacity-90 active:scale-95 disabled:opacity-60 shadow-card"
+            onClick={() => setIsRegister(!isRegister)}
+            className="text-sm text-primary font-semibold"
           >
-            {isLoading ? (
-              <div className="h-5 w-5 rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground animate-spin" />
-            ) : (
-              <>
-                <span>Continue with Internet Identity</span>
-                <ArrowRight size={16} />
-              </>
-            )}
+            {isRegister ? "Sudah punya akun? Masuk" : "Belum punya akun? Daftar"}
           </button>
-
-          <p className="text-center text-xs text-muted-foreground">
-            Don't have an account?{" "}
-            <a
-              href="/auth/register"
-              data-ocid="login.register_link"
-              className="text-primary font-medium hover:underline"
-            >
-              Create one
-            </a>
-          </p>
         </div>
 
-        <p className="text-xs text-muted-foreground text-center">
-          By continuing, you agree to our Terms of Service.
-        </p>
+        {!isRegister && (
+          <div className="text-center">
+            <button type="button" className="text-xs text-muted-foreground">
+              Lupa password?
+            </button>
+          </div>
+        )}
       </motion.div>
+
+      <p className="text-[10px] text-muted-foreground mt-10 text-center">
+        🚧 Dalam Tahap Pengembangan oleh JoyDev
+      </p>
     </div>
   );
 }
