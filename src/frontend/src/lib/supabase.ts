@@ -3,11 +3,17 @@ import { createClient } from "@supabase/supabase-js";
 const SUPABASE_URL = "https://qlkipgcbnyyiqagstrrm.supabase.co";
 const SUPABASE_KEY = "sb_publishable_i1PfW23rimOkFCja5N2o-w_8ITzxJzX";
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+  },
+});
 
-// Types
 export type Post = {
   id: string;
+  user_id: string;
   username: string;
   caption: string;
   image_url: string;
@@ -18,6 +24,7 @@ export type Post = {
 
 export type Story = {
   id: string;
+  user_id: string;
   username: string;
   media_url: string;
   caption: string;
@@ -29,6 +36,7 @@ export type Story = {
 export type Comment = {
   id: string;
   post_id: string;
+  user_id: string;
   username: string;
   content: string;
   created_at: string;
@@ -42,15 +50,9 @@ export type Profile = {
   created_at: string;
 };
 
-export type SellerApplication = {
-  id?: string;
-  full_name: string;
-  username: string;
-  email: string;
-  phone: string;
-  id_number: string;
-  address: string;
-  product_type: string;
-  reason: string;
-  status?: string;
+export type Follow = {
+  id: string;
+  follower_id: string;
+  following_id: string;
+  created_at: string;
 };
