@@ -1,12 +1,13 @@
 import { Layout } from "@/components/layout/Layout";
 import { Avatar } from "@/components/shared/Avatar";
-import { supabase, type Post, type Story } from "@/lib/supabase";
+import { useAuth } from "@/hooks/use-auth";
+import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "@tanstack/react-router";
 import { Bell, Heart, MessageCircle, Moon, Plus, Search, Send, Sun, Zap } from "lucide-react";
-import { motion, AnimatePresence } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { useTheme } from "next-themes";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 const SAMPLE_STORIES = [
@@ -14,13 +15,12 @@ const SAMPLE_STORIES = [
   { username: "tech_by_kai", seed: "kai", viewed: false },
   { username: "mia.creates", seed: "mia", viewed: true },
   { username: "glowlab.id", seed: "glow", viewed: false },
-  { username: "zenbrews", seed: "zen", viewed: true },
 ];
 
 const FALLBACK_POSTS = [
-  { id: "1", username: "aurora_styles", seed: "aurora", imgSeed: "post1", imgBg: "b6e3f4", caption: "New collection just dropped! ✨ #OOTD #fashion", likes: 2847, comments: 134, time: "2j", image_url: "" },
-  { id: "2", username: "tech_by_kai", seed: "kai", imgSeed: "post2", imgBg: "c0aede", caption: "Setup tour 🖥️ Everything linked in marketplace! #techsetup", likes: 5102, comments: 287, time: "4j", image_url: "" },
-  { id: "3", username: "glowlab.id", seed: "glow", imgSeed: "post3", imgBg: "d1f4cc", caption: "Glass skin routine 🧴 30 days challenge! #skincare", likes: 4410, comments: 320, time: "6j", image_url: "" },
+  { id: "f1", username: "aurora_styles", seed: "aurora", imgSeed: "post1", imgBg: "b6e3f4", caption: "New collection! ✨ #OOTD #fashion", likes: 2847, comments: 134, time: "2j", image_url: "", user_id: "" },
+  { id: "f2", username: "tech_by_kai", seed: "kai", imgSeed: "post2", imgBg: "c0aede", caption: "Setup tour 🖥️ #techsetup", likes: 5102, comments: 287, time: "4j", image_url: "", user_id: "" },
+  { id: "f3", username: "glowlab.id", seed: "glow", imgSeed: "post3", imgBg: "d1f4cc", caption: "Glass skin routine 🧴 #skincare", likes: 4410, comments: 320, time: "6j", image_url: "", user_id: "" },
 ];
 
 function timeAgo(dateStr: string) {
@@ -32,18 +32,22 @@ function timeAgo(dateStr: string) {
   return `${Math.floor(hours / 24)}h`;
 }
 
-function PostCard({ post, seed, imgSeed, imgBg, time, commentCount }: {
-  post: any; seed: string; imgSeed: string; imgBg: string; time: string; commentCount: number;
+function PostCard({ post, currentUserId, currentUsername, onDelete }: {
+  post: any; currentUserId: string | null; currentUsername: string; onDelete?: (id: string) => void;
 }) {
   const [liked, setLiked] = useState(false);
   const [likes, setLikes] = useState(post.likes || 0);
   const [showComments, setShowComments] = useState(false);
   const [comments, setComments] = useState<any[]>([]);
   const [newComment, setNewComment] = useState("");
+  const [showMenu, setShowMenu] = useState(false);
   const navigate = useNavigate();
 
+  const isOwner = currentUserId && post.user_id === currentUserId;
+
   async function loadComments() {
-    const { data } = await supabase.from("comments").select("*").eq("post_id", post.id).order("created_at", { ascending: true });
+    if (post.id.startsWith("f")) return;
+    const { data } = await supabase.from("comments").select("*").eq("post_id", post.id).order("created_at");
     if (data) setComments(data);
   }
 
@@ -51,14 +55,14 @@ function PostCard({ post, seed, imgSeed, imgBg, time, commentCount }: {
     const newLikes = liked ? likes - 1 : likes + 1;
     setLiked(!liked);
     setLikes(newLikes);
-    if (post.id && !post.id.startsWith("f")) {
+    if (!post.id.startsWith("f")) {
       await supabase.from("posts").update({ likes: newLikes }).eq("id", post.id);
     }
   }
 
   async function submitComment() {
     if (!newComment.trim()) return;
-    const comment = { post_id: post.id, username: "Joy", content: newComment };
+    const comment = { post_id: post.id, user_id: currentUserId, username: currentUsername, content: newComment };
     setComments(prev => [...prev, { ...comment, id: Date.now().toString(), created_at: new Date().toISOString() }]);
     setNewComment("");
     if (!post.id.startsWith("f")) {
@@ -66,24 +70,45 @@ function PostCard({ post, seed, imgSeed, imgBg, time, commentCount }: {
     }
   }
 
+  async function handleDelete() {
+    if (!isOwner) return;
+    const { error } = await supabase.from("posts").delete().eq("id", post.id);
+    if (!error) {
+      toast.success("Postingan dihapus!");
+      onDelete?.(post.id);
+    }
+    setShowMenu(false);
+  }
+
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="bg-card border border-border rounded-2xl overflow-hidden">
       <div className="flex items-center gap-3 px-4 py-3">
-        <button type="button" onClick={() => navigate({ to: "/profile/$uid", params: { uid: seed } })}>
-          <Avatar src={`https://api.dicebear.com/9.x/notionists/svg?seed=${seed}`} alt={post.username} size="sm" withRing />
+        <button type="button" onClick={() => navigate({ to: "/profile/$uid", params: { uid: post.user_id || post.seed } })}>
+          <Avatar src={`https://api.dicebear.com/9.x/notionists/svg?seed=${post.seed || post.username}`} alt={post.username} size="sm" withRing />
         </button>
         <div className="flex-1">
           <p className="text-sm font-semibold text-foreground">{post.username}</p>
-          <p className="text-[11px] text-muted-foreground">{time} yang lalu</p>
+          <p className="text-[11px] text-muted-foreground">{post.time || (post.created_at ? timeAgo(post.created_at) : "2j")} yang lalu</p>
         </div>
-        <button type="button" className="text-xs text-primary font-semibold border border-primary/30 px-3 py-1 rounded-full">Ikuti</button>
+        {isOwner ? (
+          <div className="relative">
+            <button type="button" onClick={() => setShowMenu(!showMenu)} className="text-xs text-muted-foreground px-2 py-1 rounded-full hover:bg-muted">•••</button>
+            {showMenu && (
+              <div className="absolute right-0 top-8 bg-card border border-border rounded-xl shadow-lg z-10 overflow-hidden">
+                <button type="button" onClick={handleDelete} className="block w-full px-4 py-2.5 text-xs text-destructive font-semibold hover:bg-muted text-left">Hapus Postingan</button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <button type="button" className="text-xs text-primary font-semibold border border-primary/30 px-3 py-1 rounded-full">Ikuti</button>
+        )}
       </div>
 
       <div className="aspect-square bg-muted">
         {post.image_url ? (
           <img src={post.image_url} alt="" className="w-full h-full object-cover" />
         ) : (
-          <img src={`https://api.dicebear.com/9.x/shapes/svg?seed=${imgSeed}&backgroundColor=${imgBg}`} alt="" className="w-full h-full object-cover" />
+          <img src={`https://api.dicebear.com/9.x/shapes/svg?seed=${post.imgSeed || post.id}&backgroundColor=${post.imgBg || "b6e3f4"}`} alt="" className="w-full h-full object-cover" />
         )}
       </div>
 
@@ -97,7 +122,7 @@ function PostCard({ post, seed, imgSeed, imgBg, time, commentCount }: {
           </button>
           <button type="button" onClick={() => { setShowComments(!showComments); if (!showComments) loadComments(); }} className="flex items-center gap-1.5">
             <MessageCircle size={22} className="stroke-foreground fill-transparent" />
-            <span className="text-sm font-medium text-foreground">{comments.length || commentCount}</span>
+            <span className="text-sm font-medium text-foreground">{comments.length || post.comments || 0}</span>
           </button>
           <button type="button" className="ml-auto"><Send size={20} className="stroke-foreground fill-transparent" /></button>
         </div>
@@ -107,7 +132,6 @@ function PostCard({ post, seed, imgSeed, imgBg, time, commentCount }: {
           <span className="text-muted-foreground">{post.caption}</span>
         </p>
 
-        {/* Comments section */}
         <AnimatePresence>
           {showComments && (
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="space-y-2 border-t border-border pt-2">
@@ -121,17 +145,9 @@ function PostCard({ post, seed, imgSeed, imgBg, time, commentCount }: {
                   </div>
                 </div>
               ))}
-              <div className="flex gap-2 mt-2">
-                <input
-                  value={newComment}
-                  onChange={e => setNewComment(e.target.value)}
-                  onKeyDown={e => e.key === "Enter" && submitComment()}
-                  placeholder="Tulis komentar..."
-                  className="flex-1 bg-muted border border-border rounded-full px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
-                />
-                <button type="button" onClick={submitComment} className="px-3 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-semibold">
-                  Kirim
-                </button>
+              <div className="flex gap-2">
+                <input value={newComment} onChange={e => setNewComment(e.target.value)} onKeyDown={e => e.key === "Enter" && submitComment()} placeholder="Tulis komentar..." className="flex-1 bg-muted border border-border rounded-full px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary/40" />
+                <button type="button" onClick={submitComment} className="px-3 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-semibold">Kirim</button>
               </div>
             </motion.div>
           )}
@@ -144,30 +160,35 @@ function PostCard({ post, seed, imgSeed, imgBg, time, commentCount }: {
 export default function HomePage() {
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
+  const { user, isAuthenticated, isLoading, username, userId } = useAuth();
   const [posts, setPosts] = useState<any[]>([]);
-  const [stories, setStories] = useState(SAMPLE_STORIES);
-  const [loading, setLoading] = useState(true);
-  const [dbStories, setDbStories] = useState<Story[]>([]);
+  const [loadingPosts, setLoadingPosts] = useState(true);
 
   useEffect(() => {
-    loadPosts();
-    loadStories();
-  }, []);
+    if (!isLoading && !isAuthenticated) {
+      navigate({ to: "/auth/login" });
+    }
+  }, [isAuthenticated, isLoading]);
+
+  useEffect(() => {
+    if (isAuthenticated) loadPosts();
+  }, [isAuthenticated]);
 
   async function loadPosts() {
     const { data } = await supabase.from("posts").select("*").order("created_at", { ascending: false }).limit(20);
     if (data && data.length > 0) {
-      setPosts(data.map(p => ({ ...p, seed: p.username.split("_")[0], imgSeed: p.id, imgBg: "b6e3f4" })));
+      setPosts(data.map(p => ({ ...p, seed: p.username?.split("_")[0] || "user" })));
     } else {
       setPosts(FALLBACK_POSTS);
     }
-    setLoading(false);
+    setLoadingPosts(false);
   }
 
-  async function loadStories() {
-    const { data } = await supabase.from("stories").select("*").gt("expires_at", new Date().toISOString()).order("created_at", { ascending: false });
-    if (data) setDbStories(data);
+  function handleDeletePost(id: string) {
+    setPosts(prev => prev.filter(p => p.id !== id));
   }
+
+  if (isLoading) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
 
   return (
     <Layout>
@@ -188,7 +209,7 @@ export default function HomePage() {
           </div>
         </div>
         <button type="button" onClick={() => navigate({ to: "/search" })} className="flex items-center gap-2 w-full bg-muted border border-border rounded-xl px-3 py-2.5 text-sm text-muted-foreground hover:border-primary/40 transition-smooth">
-          <Search size={15} className="text-muted-foreground shrink-0" />
+          <Search size={15} className="shrink-0" />
           <span>Cari akun, produk, hashtag...</span>
         </button>
       </header>
@@ -206,18 +227,6 @@ export default function HomePage() {
             </div>
             <span className="text-[10px] text-muted-foreground">Story</span>
           </button>
-
-          {/* DB stories */}
-          {dbStories.map(s => (
-            <button key={s.id} type="button" onClick={() => navigate({ to: "/story" })} className="flex flex-col items-center gap-1.5 shrink-0">
-              <div className="p-0.5 rounded-full bg-gradient-to-tr from-primary to-secondary">
-                <Avatar src={`https://api.dicebear.com/9.x/notionists/svg?seed=${s.username}`} alt={s.username} size="sm" />
-              </div>
-              <span className="text-[10px] text-muted-foreground truncate w-14 text-center">{s.username}</span>
-            </button>
-          ))}
-
-          {/* Sample stories */}
           {SAMPLE_STORIES.map(s => (
             <button key={s.username} type="button" onClick={() => navigate({ to: "/story" })} className="flex flex-col items-center gap-1.5 shrink-0">
               <div className={cn("p-0.5 rounded-full", s.viewed ? "bg-border" : "bg-gradient-to-tr from-primary to-secondary")}>
@@ -231,7 +240,7 @@ export default function HomePage() {
 
       {/* Feed */}
       <div className="flex flex-col gap-4 px-4 py-4 pb-24">
-        {loading ? (
+        {loadingPosts ? (
           Array.from({ length: 2 }).map((_, i) => (
             <div key={i} className="bg-card border border-border rounded-2xl overflow-hidden animate-pulse">
               <div className="flex items-center gap-3 px-4 py-3">
@@ -244,21 +253,12 @@ export default function HomePage() {
               <div className="aspect-square bg-muted" />
               <div className="p-4 space-y-2">
                 <div className="h-3 bg-muted rounded w-32" />
-                <div className="h-3 bg-muted rounded w-48" />
               </div>
             </div>
           ))
         ) : (
           posts.map(post => (
-            <PostCard
-              key={post.id}
-              post={post}
-              seed={post.seed || post.username?.split("_")[0] || "user"}
-              imgSeed={post.imgSeed || post.id}
-              imgBg={post.imgBg || "b6e3f4"}
-              time={post.time || (post.created_at ? timeAgo(post.created_at) : "2j")}
-              commentCount={post.comments || 0}
-            />
+            <PostCard key={post.id} post={post} currentUserId={userId} currentUsername={username} onDelete={handleDeletePost} />
           ))
         )}
       </div>
