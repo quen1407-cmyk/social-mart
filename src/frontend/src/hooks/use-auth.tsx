@@ -1,35 +1,32 @@
-import { useInternetIdentity } from "@caffeineai/core-infrastructure";
-import type { Principal } from "@icp-sdk/core/principal";
+import { supabase } from "@/lib/supabase";
+import { useEffect, useState } from "react";
+import type { User } from "@supabase/supabase-js";
 
-export interface AuthState {
-  isAuthenticated: boolean;
-  principal: Principal | null;
-  login: () => Promise<void>;
-  logout: () => void;
-  isLoading: boolean;
-}
+export function useAuth() {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
-export function useAuth(): AuthState {
-  const { identity, login, clear, loginStatus } = useInternetIdentity();
+  useEffect(() => {
+    // Get current session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
 
-  const principal = identity?.getPrincipal() ?? null;
-  const isAuthenticated =
-    loginStatus === "success" && principal !== null && !principal.isAnonymous();
-  const isLoading = loginStatus === "logging-in";
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
 
-  const handleLogin = async () => {
-    await login();
-  };
-
-  const handleLogout = () => {
-    clear();
-  };
+    return () => subscription.unsubscribe();
+  }, []);
 
   return {
-    isAuthenticated,
-    principal,
-    login: handleLogin,
-    logout: handleLogout,
-    isLoading,
+    user,
+    isAuthenticated: !!user,
+    isLoading: loading,
+    username: user?.user_metadata?.username ?? user?.email?.split("@")[0] ?? "User",
+    userId: user?.id ?? null,
   };
 }
