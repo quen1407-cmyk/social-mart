@@ -19,6 +19,7 @@ const ReelsPage = lazy(() => import("./pages/ReelsPage"));
 const NotificationsPage = lazy(() => import("./pages/NotificationsPage"));
 const StoryPage = lazy(() => import("./pages/StoryPage"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
+const SellerApplyPage = lazy(() => import("./pages/SellerApplyPage"));
 
 const rootRoute = createRootRoute({
   component: () => (
@@ -50,6 +51,7 @@ const routes = [
   createRoute({ getParentRoute: () => rootRoute, path: "/notifications", component: wrap(NotificationsPage) }),
   createRoute({ getParentRoute: () => rootRoute, path: "/story", component: wrap(StoryPage) }),
   createRoute({ getParentRoute: () => rootRoute, path: "/settings", component: wrap(SettingsPage) }),
+  createRoute({ getParentRoute: () => rootRoute, path: "/seller-apply", component: wrap(SellerApplyPage) }),
 ];
 
 const routeTree = rootRoute.addChildren(routes);
